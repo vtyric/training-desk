@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Интерфейс и общая тема'
+    short_description: 'Развитие Angular-портала и общей SCSS-темы'
+    default_prompt: 'Используй $training-desk-ui для работы с учебным Service Desk в этом репозитории.'

@@ -1,0 +1,95 @@
+@use 'sass:map';
+
+$base: (
+    color-surface: #fff,
+    color-brand-mark: #2457ff,
+    color-brand-accent: #2ba2ff,
+    color-brand-text: #080808,
+    color-ink: #222835,
+    color-muted: #52647c,
+    color-line: #d1e0ef,
+    color-line-soft: #e5edf6,
+    color-input-line: #a8bfd9,
+    color-primary: #3b82f6,
+    color-primary-hover: #2563eb,
+    color-primary-ink: #fff,
+    color-soft: #eff6ff,
+    color-canvas: #f8fafc,
+    color-decorative: #2ba2ff,
+    color-error: #9c3026,
+    color-error-soft: #fff2ef,
+    color-error-line: #e6b8af,
+    color-success: #285c3b,
+    color-success-soft: #eff8f2,
+    color-success-line: #b8d7c1,
+    color-focus: #2563eb,
+    color-selection: #d1e6ff,
+    shadow-panel: 0 8px 30px #142b4a08,
+    shadow-selected: 0 0 0 1px var(--desk-color-primary),
+    radius-sm: 6px,
+    radius: 10px,
+    radius-lg: 16px,
+    radius-pill: 999px,
+    focus-width: 3px,
+    focus-offset: 3px,
+    disabled-opacity: 0.55,
+    font-family: (
+        Montserrat,
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        sans-serif,
+    ),
+    font-size-body: 13px,
+    font-size-small: 12px,
+    font-size-input: 14px,
+    font-size-input-mobile: 16px,
+    font-size-title: clamp(27px, 2.8vw, 38px),
+    font-size-section: 18px,
+    font-size-hero: clamp(40px, 4.5vw, 68px),
+    font-size-login-title: 30px,
+    font-size-icon: 20px,
+    font-size-art: 42px,
+    font-weight-normal: 400,
+    font-weight-medium: 500,
+    font-weight-strong: 600,
+    line-height-body: 1.8,
+    line-height-heading: 1.2,
+    line-height-control: 1.5,
+    line-height-hero: 1.05,
+    tracking-title: -1.3px,
+    tracking-section: -0.4px,
+    tracking-eyebrow: 1.2px,
+    transition: 160ms ease,
+);
+
+$themes: (
+    abanking: $base,
+    artsofte: map.merge(
+            $base,
+            (
+                color-ink: #0e0f0f,
+                color-muted: #62666c,
+                color-line: #ded8d2,
+                color-line-soft: #eee7e2,
+                color-input-line: #b7aca4,
+                color-primary: #0e0f0f,
+                color-primary-hover: #35302c,
+                color-soft: #ffede6,
+                color-canvas: #faf9f8,
+                color-decorative: #e6bfa8,
+                color-focus: #2e62d9,
+                color-selection: #ffdacb,
+                shadow-panel: 0 8px 30px #0e0f0f08,
+            )
+        ),
+);
+
+@mixin properties($theme: abanking, $overrides: ()) {
+    @if not map.has-key($themes, $theme) {
+        @error 'Unknown theme: #{$theme}. Available themes: #{map.keys($themes)}';
+    }
+    @each $name, $value in map.merge(map.get($themes, $theme), $overrides) {
+        --desk-#{$name}: #{$value};
+    }
+}

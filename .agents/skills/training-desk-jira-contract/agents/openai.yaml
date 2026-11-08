@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Контракты Jira API'
+    short_description: 'Совместимость учебного API с Jira Service Management'
+    default_prompt: 'Используй $training-desk-jira-contract для работы с учебным Service Desk в этом репозитории.'

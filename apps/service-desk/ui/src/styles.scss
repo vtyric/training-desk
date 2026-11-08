@@ -1,0 +1,10 @@
+@use 'theme';
+@use 'ui';
+
+@include theme.install($native-controls: false);
+@include ui.install();
+
+// Lock only the list route; form, card and settings pages keep normal document scrolling.
+body:has(app-portal .requests-view) {
+    overflow: hidden;
+}

@@ -1,0 +1,33 @@
+{
+    "name": "identity",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "sourceRoot": "apps/identity",
+    "implicitDependencies": ["theme", "ui"],
+    "tags": ["scope:identity", "type:app"],
+    "targets": {
+        "theme-build": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "outputs": ["{workspaceRoot}/dist/apps/identity/theme"],
+            "inputs": ["default", "^default", "{workspaceRoot}/tools/build-identity-theme.mjs"],
+            "options": {
+                "command": "node tools/build-identity-theme.mjs"
+            }
+        },
+        "build": {
+            "executor": "nx:run-commands",
+            "cache": false,
+            "dependsOn": [],
+            "options": {
+                "command": "docker compose up --build -d --wait identity"
+            }
+        },
+        "serve": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "docker compose up --build -d --wait identity"
+            }
+        }
+    }
+}

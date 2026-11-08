@@ -1,0 +1,452 @@
+{
+    "realm": "training",
+    "displayName": "Artsofte Federation",
+    "enabled": true,
+    "sslRequired": "none",
+    "loginTheme": "artsofte",
+    "internationalizationEnabled": true,
+    "supportedLocales": ["ru", "en"],
+    "defaultLocale": "ru",
+    "registrationAllowed": false,
+    "resetPasswordAllowed": false,
+    "rememberMe": false,
+    "loginWithEmailAllowed": false,
+    "bruteForceProtected": true,
+    "accessTokenLifespan": 300,
+    "ssoSessionIdleTimeout": 1800,
+    "clients": [
+        {
+            "clientId": "service-desk",
+            "enabled": true,
+            "protocol": "openid-connect",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "implicitFlowEnabled": false
+        },
+        {
+            "clientId": "service-desk-test",
+            "enabled": true,
+            "protocol": "openid-connect",
+            "publicClient": true,
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "redirectUris": ["${SERVICE_DESK_PUBLIC_URL}/auth/callback", "${SERVICE_DESK_DEV_URL}/auth/callback"],
+            "webOrigins": ["${SERVICE_DESK_PUBLIC_URL}", "${SERVICE_DESK_DEV_URL}"],
+            "attributes": {
+                "pkce.code.challenge.method": "S256",
+                "post.logout.redirect.uris": "${SERVICE_DESK_PUBLIC_URL}/##${SERVICE_DESK_DEV_URL}/"
+            },
+            "protocolMappers": [
+                {
+                    "name": "username",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-property-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "user.attribute": "username",
+                        "claim.name": "preferred_username"
+                    }
+                },
+                {
+                    "name": "team",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "user.attribute": "team_slug",
+                        "claim.name": "team_slug",
+                        "multivalued": "false"
+                    }
+                },
+                {
+                    "name": "Service Desk roles",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-client-role-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "usermodel.clientRoleMapping.clientId": "service-desk",
+                        "claim.name": "resource_access.service-desk.roles",
+                        "multivalued": "true"
+                    }
+                },
+                {
+                    "name": "Service Desk audience",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-audience-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "included.client.audience": "service-desk",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true"
+                    }
+                },
+                {
+                    "name": "Имя пользователя",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-full-name-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "access.token.claim": "true",
+                        "id.token.claim": "true",
+                        "userinfo.token.claim": "true"
+                    }
+                }
+            ]
+        },
+        {
+            "clientId": "student-service",
+            "enabled": true,
+            "protocol": "openid-connect",
+            "publicClient": true,
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "redirectUris": ["${STUDENT_REDIRECT_URI}"],
+            "webOrigins": ["${STUDENT_ORIGIN}"],
+            "attributes": {
+                "pkce.code.challenge.method": "S256",
+                "post.logout.redirect.uris": "${STUDENT_ORIGIN}/"
+            },
+            "protocolMappers": [
+                {
+                    "name": "username",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-property-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "user.attribute": "username",
+                        "claim.name": "preferred_username"
+                    }
+                },
+                {
+                    "name": "team",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "user.attribute": "team_slug",
+                        "claim.name": "team_slug",
+                        "multivalued": "false"
+                    }
+                },
+                {
+                    "name": "Service Desk roles",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-client-role-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "usermodel.clientRoleMapping.clientId": "service-desk",
+                        "claim.name": "resource_access.service-desk.roles",
+                        "multivalued": "true"
+                    }
+                },
+                {
+                    "name": "Service Desk audience",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-audience-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "included.client.audience": "service-desk",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true"
+                    }
+                },
+                {
+                    "name": "Имя пользователя",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-full-name-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "access.token.claim": "true",
+                        "id.token.claim": "true",
+                        "userinfo.token.claim": "true"
+                    }
+                }
+            ]
+        },
+        {
+            "clientId": "service-desk-swagger",
+            "enabled": true,
+            "protocol": "openid-connect",
+            "publicClient": true,
+            "standardFlowEnabled": true,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "redirectUris": [
+                "${SERVICE_DESK_PUBLIC_URL}/docs/static/oauth2-redirect.html",
+                "${API_DOCS_DEV_URL}/docs/static/oauth2-redirect.html"
+            ],
+            "webOrigins": ["${SERVICE_DESK_PUBLIC_URL}", "${API_DOCS_DEV_URL}"],
+            "attributes": {
+                "pkce.code.challenge.method": "S256",
+                "post.logout.redirect.uris": "${SERVICE_DESK_PUBLIC_URL}/docs/##${API_DOCS_DEV_URL}/docs/"
+            },
+            "protocolMappers": [
+                {
+                    "name": "username",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-property-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "user.attribute": "username",
+                        "claim.name": "preferred_username"
+                    }
+                },
+                {
+                    "name": "team",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "user.attribute": "team_slug",
+                        "claim.name": "team_slug",
+                        "multivalued": "false"
+                    }
+                },
+                {
+                    "name": "Service Desk roles",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-client-role-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "true",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "jsonType.label": "String",
+                        "usermodel.clientRoleMapping.clientId": "service-desk",
+                        "claim.name": "resource_access.service-desk.roles",
+                        "multivalued": "true"
+                    }
+                },
+                {
+                    "name": "Service Desk audience",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-audience-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "included.client.audience": "service-desk",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true"
+                    }
+                },
+                {
+                    "name": "Имя пользователя",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-full-name-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "access.token.claim": "true",
+                        "id.token.claim": "true",
+                        "userinfo.token.claim": "true"
+                    }
+                }
+            ],
+            "name": "Service Desk Swagger",
+            "baseUrl": "${SERVICE_DESK_PUBLIC_URL}/docs/"
+        },
+        {
+            "clientId": "service-desk-directory",
+            "name": "Service Desk employee directory",
+            "enabled": true,
+            "protocol": "openid-connect",
+            "publicClient": false,
+            "bearerOnly": false,
+            "standardFlowEnabled": false,
+            "implicitFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "${IDENTITY_DIRECTORY_CLIENT_SECRET}",
+            "fullScopeAllowed": true,
+            "defaultClientScopes": ["roles"],
+            "optionalClientScopes": [],
+            "attributes": {
+                "training.managed-directory": "true"
+            }
+        }
+    ],
+    "components": {
+        "org.keycloak.storage.UserStorageProvider": [
+            {
+                "id": "training-ldap",
+                "name": "training-ldap",
+                "providerId": "ldap",
+                "config": {
+                    "enabled": ["true"],
+                    "priority": ["0"],
+                    "vendor": ["other"],
+                    "connectionUrl": ["ldap://ldap:1389"],
+                    "usersDn": ["ou=people,dc=training,dc=local"],
+                    "bindDn": ["cn=admin,dc=training,dc=local"],
+                    "bindCredential": ["${LDAP_ADMIN_PASSWORD}"],
+                    "authType": ["simple"],
+                    "editMode": ["WRITABLE"],
+                    "importEnabled": ["true"],
+                    "syncRegistrations": ["true"],
+                    "usernameLDAPAttribute": ["uid"],
+                    "rdnLDAPAttribute": ["uid"],
+                    "uuidLDAPAttribute": ["entryUUID"],
+                    "userObjectClasses": ["inetOrgPerson"],
+                    "searchScope": ["1"],
+                    "pagination": ["true"],
+                    "connectionTimeout": ["5000"],
+                    "readTimeout": ["5000"],
+                    "cachePolicy": ["NO_CACHE"],
+                    "useTruststoreSpi": ["ldapsOnly"],
+                    "startTls": ["false"],
+                    "validatePasswordPolicy": ["false"]
+                },
+                "subComponents": {
+                    "org.keycloak.storage.ldap.mappers.LDAPStorageMapper": [
+                        {
+                            "name": "username",
+                            "providerId": "user-attribute-ldap-mapper",
+                            "config": {
+                                "user.model.attribute": ["username"],
+                                "ldap.attribute": ["uid"],
+                                "read.only": ["false"],
+                                "always.read.value.from.ldap": ["true"],
+                                "is.mandatory.in.ldap": ["true"]
+                            }
+                        },
+                        {
+                            "name": "first name",
+                            "providerId": "user-attribute-ldap-mapper",
+                            "config": {
+                                "user.model.attribute": ["firstName"],
+                                "ldap.attribute": ["cn"],
+                                "read.only": ["false"],
+                                "always.read.value.from.ldap": ["true"],
+                                "is.mandatory.in.ldap": ["true"]
+                            }
+                        },
+                        {
+                            "name": "last name",
+                            "providerId": "user-attribute-ldap-mapper",
+                            "config": {
+                                "user.model.attribute": ["lastName"],
+                                "ldap.attribute": ["sn"],
+                                "read.only": ["false"],
+                                "always.read.value.from.ldap": ["true"],
+                                "is.mandatory.in.ldap": ["true"]
+                            }
+                        },
+                        {
+                            "name": "team slug",
+                            "providerId": "user-attribute-ldap-mapper",
+                            "config": {
+                                "user.model.attribute": ["team_slug"],
+                                "ldap.attribute": ["employeeType"],
+                                "read.only": ["false"],
+                                "always.read.value.from.ldap": ["true"],
+                                "is.mandatory.in.ldap": ["false"]
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "roles": {
+        "client": {
+            "service-desk": [
+                {
+                    "name": "customer",
+                    "description": "Заявитель: создание и просмотр своих обращений"
+                },
+                {
+                    "name": "support",
+                    "description": "Сотрудник поддержки: обработка обращений, статусы и исполнители"
+                },
+                {
+                    "name": "admin",
+                    "description": "Администратор Service Desk: настройки сервиса и обработка обращений"
+                },
+                {
+                    "name": "support-lead",
+                    "description": "Руководитель поддержки: первоначальный исполнитель новых обращений",
+                    "composite": true,
+                    "composites": {
+                        "client": {
+                            "service-desk": ["support"]
+                        }
+                    }
+                }
+            ],
+            "student-service": [
+                {
+                    "name": "user"
+                },
+                {
+                    "name": "moderator"
+                }
+            ]
+        }
+    },
+    "attributes": {
+        "training.bootstrap.pending": "true"
+    },
+    "groups": [
+        {
+            "name": "desk-customers",
+            "clientRoles": {
+                "service-desk": ["customer"]
+            }
+        },
+        {
+            "name": "desk-support",
+            "clientRoles": {
+                "service-desk": ["support"]
+            }
+        },
+        {
+            "name": "desk-admins",
+            "clientRoles": {
+                "service-desk": ["admin"]
+            }
+        },
+        {
+            "name": "desk-support-leads",
+            "clientRoles": {
+                "service-desk": ["support-lead"]
+            }
+        }
+    ]
+}

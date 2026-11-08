@@ -1,0 +1,90 @@
+{
+    "name": "service-desk",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "sourceRoot": "apps/service-desk/src",
+    "implicitDependencies": ["auth", "webhooks", "theme", "settings", "ui"],
+    "tags": ["scope:service-desk", "type:app"],
+    "targets": {
+        "build-api": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "outputs": ["{workspaceRoot}/dist/apps/service-desk/api"],
+            "options": {
+                "command": "node tools/build-service-desk-api.mjs"
+            }
+        },
+        "build-ui": {
+            "executor": "@angular/build:application",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/apps/service-desk/ui",
+                "index": "apps/service-desk/ui/src/index.html",
+                "browser": "apps/service-desk/ui/src/main.ts",
+                "tsConfig": "apps/service-desk/ui/tsconfig.app.json",
+                "inlineStyleLanguage": "scss",
+                "stylePreprocessorOptions": {
+                    "includePaths": ["libs/theme/src", "libs/ui/src"]
+                },
+                "assets": [
+                    {
+                        "glob": "**/*",
+                        "input": "libs/theme/assets",
+                        "output": "/"
+                    }
+                ],
+                "styles": ["apps/service-desk/ui/src/styles.scss"],
+                "outputHashing": "all",
+                "budgets": [
+                    {
+                        "type": "initial",
+                        "maximumWarning": "700kb",
+                        "maximumError": "1mb"
+                    },
+                    {
+                        "type": "anyComponentStyle",
+                        "maximumWarning": "12kb",
+                        "maximumError": "16kb"
+                    }
+                ]
+            }
+        },
+        "build": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": ["nx run service-desk:build-api", "nx run service-desk:build-ui"],
+                "parallel": true
+            }
+        },
+        "serve-api": {
+            "executor": "nx:run-commands",
+            "continuous": true,
+            "options": {
+                "command": "tsx watch --env-file=.env apps/service-desk/src/main.ts"
+            }
+        },
+        "serve-ui": {
+            "executor": "@angular/build:dev-server",
+            "continuous": true,
+            "options": {
+                "buildTarget": "service-desk:build-ui",
+                "port": 4200,
+                "proxyConfig": "apps/service-desk/ui/proxy.conf.json"
+            }
+        },
+        "dev": {
+            "executor": "nx:run-commands",
+            "continuous": true,
+            "options": {
+                "commands": ["nx run service-desk:serve-api", "nx run service-desk:serve-ui"],
+                "parallel": true
+            }
+        },
+        "serve": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "docker compose up --build -d --wait service-desk"
+            }
+        }
+    }
+}

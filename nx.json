@@ -1,0 +1,18 @@
+{
+    "$schema": "./node_modules/nx/schemas/nx-schema.json",
+    "analytics": false,
+    "namedInputs": {
+        "default": ["{projectRoot}/**/*", "sharedGlobals"],
+        "sharedGlobals": [
+            "{workspaceRoot}/tsconfig.base.json",
+            "{workspaceRoot}/package.json",
+            "{workspaceRoot}/pnpm-lock.yaml",
+            "{workspaceRoot}/tools/build-service-desk-api.mjs"
+        ]
+    },
+    "targetDefaults": {
+        "build": { "cache": true, "dependsOn": ["^build"], "inputs": ["default", "^default"] },
+        "lint": { "cache": true },
+        "test": { "cache": false }
+    }
+}

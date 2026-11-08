@@ -1,0 +1,23 @@
+@use 'tokens';
+@use 'typography';
+@use 'controls';
+@use 'surfaces';
+@forward 'tokens' show $themes, properties;
+
+/// Install once in an application's global SCSS. Components consume --desk-* tokens.
+@mixin install($default-theme: abanking, $overrides: (), $native-controls: true) {
+    :root {
+        @include tokens.properties($default-theme, $overrides);
+    }
+    [data-theme='abanking'] {
+        @include tokens.properties(abanking);
+    }
+    [data-theme='artsofte'] {
+        @include tokens.properties(artsofte);
+    }
+    @include typography.install;
+    @if $native-controls {
+        @include controls.install;
+    }
+    @include surfaces.install;
+}

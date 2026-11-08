@@ -1,0 +1,8 @@
+# Publish infrastructure ports only for local pnpm development and integration tests.
+services:
+    postgres:
+        ports:
+            - '127.0.0.1:55439:5432'
+    ldap:
+        ports:
+            - '127.0.0.1:1389:1389'

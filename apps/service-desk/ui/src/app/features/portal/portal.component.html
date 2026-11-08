@@ -1,0 +1,508 @@
+<div
+    class="portal"
+    [class.auth-view]="!session()?.authenticated"
+    [class.requests-view]="session()?.authenticated && view() === 'list' && !settingsOpen()"
+>
+    <a class="skip-link" href="#main">Перейти к содержимому</a>
+    <header class="topbar">
+        <a class="brand" routerLink="/" aria-label="Artsofte — поддержка" (click)="settingsOpen.set(false)">
+            <span class="brand-wordmark">Artsofte</span>
+            <span class="brand-description">Поддержка</span>
+        </a>
+        <nav class="primary-nav" aria-label="Обращения">
+            <a
+                routerLink="/requests"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                (click)="settingsOpen.set(false)"
+                >Обращения</a
+            >
+            <a
+                routerLink="/"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                (click)="settingsOpen.set(false)"
+                >Новое обращение</a
+            >
+        </nav>
+        <div class="topbar-actions">
+            @if (session()?.authenticated) {
+                <span class="user-name"
+                    >{{ session()?.user?.displayName || session()?.user?.username }} · {{ auth.roleLabel }}</span
+                >
+                @if (auth.canConfigure) {
+                    <p-button
+                        [text]="true"
+                        severity="secondary"
+                        class="secondary-action"
+                        type="button"
+                        (onClick)="openSettings()"
+                        >Настройки</p-button
+                    >
+                }
+                <p-button
+                    [text]="true"
+                    severity="secondary"
+                    class="secondary-action"
+                    type="button"
+                    [disabled]="busy()"
+                    (onClick)="logout()"
+                    >Выйти</p-button
+                >
+            }
+        </div>
+    </header>
+
+    <div class="workspace">
+        <main id="main" class="main" tabindex="-1">
+            @if (loading()) {
+                <section class="state-panel" aria-live="polite">
+                    <p-progressspinner
+                        class="ui-spinner"
+                        [style]="{ width: '1.5rem', height: '1.5rem' }"
+                        ariaLabel="Загрузка"
+                    />
+                    Загружаем портал…
+                </section>
+            } @else if (!session()?.authenticated) {
+                <p-message severity="error" class="ui-message" role="alert">
+                    Не удалось войти. Обновите страницу и войдите снова.
+                </p-message>
+            } @else if (settingsOpen()) {
+                <div class="page-heading">
+                    <h1>Настройки</h1>
+                    <p>Параметры службы поддержки и уведомлений.</p>
+                </div>
+                <section class="panel settings-panel">
+                    @if (settingsError()) {
+                        <p-message severity="error" class="ui-message" role="alert">{{ settingsError() }}</p-message>
+                    }
+                    @if (settingsSaved()) {
+                        <p-message severity="success" class="ui-message" role="status">Настройки сохранены.</p-message>
+                        @if (settingsRestartRequired()) {
+                            <p class="field-hint" role="status">
+                                Изменения сохранены. Чтобы применить параметры сервера, перезапустите Service Desk.
+                            </p>
+                        }
+                    }
+                    @if (settingsBusy() && !settingsLoaded()) {
+                        <p class="state-panel" role="status">Загружаем настройки…</p>
+                    }
+                    @if (settingsLoaded()) {
+                        <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()">
+                            <label for="settings-json">Настройки (JSON)</label>
+                            <textarea
+                                pTextarea
+                                [autoResize]="true"
+                                [fluid]="true"
+                                id="settings-json"
+                                class="settings-json"
+                                formControlName="json"
+                                rows="28"
+                                wrap="off"
+                                spellcheck="false"
+                                aria-describedby="settings-hint"
+                            ></textarea>
+                            <p id="settings-hint" class="field-hint">
+                                Измените значения и сохраните настройки. Новый адрес уведомлений работает без
+                                перезапуска. Пароли и ключи доступа хранятся отдельно.
+                            </p>
+                            <p-button class="action-button" type="submit" [disabled]="settingsBusy()">
+                                {{ settingsBusy() ? 'Сохраняем…' : 'Сохранить' }}
+                            </p-button>
+                        </form>
+                    } @else if (!settingsBusy()) {
+                        <p-button
+                            [text]="true"
+                            severity="secondary"
+                            class="secondary-action"
+                            type="button"
+                            (onClick)="openSettings()"
+                            >Повторить загрузку</p-button
+                        >
+                    }
+                    @if (settingsLoaded()) {
+                        <p-button
+                            [text]="true"
+                            severity="secondary"
+                            class="secondary-action"
+                            type="button"
+                            [disabled]="settingsBusy()"
+                            (onClick)="openSettings()"
+                        >
+                            Обновить настройки
+                        </p-button>
+                    }
+                    <p-button
+                        [text]="true"
+                        severity="secondary"
+                        class="secondary-action settings-back"
+                        type="button"
+                        (onClick)="settingsOpen.set(false)"
+                    >
+                        Вернуться к обращениям
+                    </p-button>
+                </section>
+            } @else if (view() === 'list') {
+                <div class="page-heading list-heading">
+                    <div>
+                        <h1>Обращения</h1>
+                        <p>Откройте обращение, чтобы увидеть подробности и переписку.</p>
+                    </div>
+                    <p-button type="button" (onClick)="newRequest()">Новое обращение</p-button>
+                </div>
+                <section class="panel requests-panel" aria-label="Список обращений">
+                    <div class="list-toolbar">
+                        <div class="status-filter">
+                            <label for="request-status">Статус</label>
+                            <p-select
+                                inputId="request-status"
+                                [options]="requestStatusOptions"
+                                [ngModel]="requestStatus()"
+                                (ngModelChange)="filterRequests($event)"
+                                optionLabel="label"
+                                optionValue="value"
+                                [fluid]="true"
+                                [disabled]="requestsLoading()"
+                                appendTo="body"
+                            />
+                        </div>
+                        <p-button
+                            type="button"
+                            [text]="true"
+                            severity="secondary"
+                            [disabled]="requestsLoading()"
+                            (onClick)="loadRequests()"
+                            >Обновить</p-button
+                        >
+                    </div>
+                    @if (requestsLoading()) {
+                        <div class="state-panel list-state" role="status">
+                            <p-progressspinner
+                                class="ui-spinner"
+                                [style]="{ width: '1.5rem', height: '1.5rem' }"
+                                ariaLabel="Загрузка"
+                            />
+                            Загружаем обращения…
+                        </div>
+                    } @else if (requestsError()) {
+                        <p-message severity="error" class="ui-message" role="alert">{{ requestsError() }}</p-message>
+                        <p-button type="button" [text]="true" (onClick)="loadRequests()">Повторить</p-button>
+                    } @else if (requestsPage(); as page) {
+                        @if (page.values.length) {
+                            <cdk-virtual-scroll-viewport
+                                #requestsViewport
+                                class="requests-list"
+                                role="list"
+                                aria-label="Обращения"
+                                tabindex="0"
+                                [itemSize]="requestRowHeight"
+                                [minBufferPx]="requestRowHeight"
+                                [maxBufferPx]="requestRowHeight * 2"
+                                (scrolledIndexChange)="onRequestsScroll($event, requestsViewport)"
+                            >
+                                <div
+                                    *cdkVirtualFor="let ticket of page.values; let index = index; trackBy: trackRequest"
+                                    class="request-item"
+                                    role="listitem"
+                                    [attr.aria-posinset]="index + 1"
+                                    [attr.aria-setsize]="page.isLastPage ? page.values.length : -1"
+                                >
+                                    <a
+                                        class="request-row"
+                                        [routerLink]="['/requests', ticket.issueKey]"
+                                        [attr.aria-label]="
+                                            ticket.issueKey +
+                                            ': ' +
+                                            requestTitle(ticket) +
+                                            ', ' +
+                                            ticket.currentStatus.status
+                                        "
+                                    >
+                                        <div class="request-identity">
+                                            <span class="request-key">{{ ticket.issueKey }}</span>
+                                            <strong>{{ requestTitle(ticket) }}</strong>
+                                        </div>
+                                        <p-tag
+                                            [value]="ticket.currentStatus.status"
+                                            [severity]="statusSeverity(ticket.currentStatus.status)"
+                                        />
+                                        <time class="request-date">{{
+                                            ticket.createdDate?.iso8601 | date: 'dd.MM.yyyy'
+                                        }}</time>
+                                    </a>
+                                </div>
+                            </cdk-virtual-scroll-viewport>
+                        } @else {
+                            <div class="list-state empty-list" role="status">
+                                <h2>Обращений пока нет</h2>
+                                <p>
+                                    {{
+                                        requestStatus() === 'ALL_REQUESTS'
+                                            ? 'Создайте обращение, если нужна помощь.'
+                                            : 'Обращений с таким статусом нет. Выберите другой статус.'
+                                    }}
+                                </p>
+                            </div>
+                        }
+                        @if (requestsLoadingMore()) {
+                            <div class="list-progress" role="status">Загружаем ещё обращения…</div>
+                        } @else if (requestsMoreError()) {
+                            <div class="list-progress list-more-error" role="alert">
+                                <span>{{ requestsMoreError() }}</span>
+                                <p-button type="button" [text]="true" (onClick)="loadMoreRequests()"
+                                    >Повторить</p-button
+                                >
+                            </div>
+                        }
+                    }
+                </section>
+            } @else if (request(); as ticket) {
+                <div class="page-heading">
+                    <p class="page-caption">{{ created() ? 'Обращение создано' : 'Обращение' }}</p>
+                    <h1>{{ ticket.issueKey }}</h1>
+                    <p>{{ typeName(ticket.requestTypeId) }}</p>
+                    <a class="new-request-link" routerLink="/requests">К списку обращений</a>
+                </div>
+                @if (error()) {
+                    <p-message severity="error" class="ui-message" role="alert">{{ error() }}</p-message>
+                }
+                <div class="content-grid">
+                    <section class="panel request-card">
+                        <div class="card-top">
+                            <p-tag
+                                [value]="ticket.currentStatus.status"
+                                [severity]="statusSeverity(ticket.currentStatus.status)"
+                            />
+                            <div class="card-actions">
+                                @if (closeTransition()) {
+                                    <p-button
+                                        type="button"
+                                        [outlined]="true"
+                                        severity="secondary"
+                                        [disabled]="busy()"
+                                        (onClick)="closeRequest()"
+                                    >
+                                        {{ closing() ? 'Закрываем…' : 'Закрыть обращение' }}
+                                    </p-button>
+                                }
+                                <p-button
+                                    type="button"
+                                    [text]="true"
+                                    severity="secondary"
+                                    class="secondary-action"
+                                    [disabled]="busy()"
+                                    (onClick)="refreshRequest()"
+                                >
+                                    Обновить
+                                </p-button>
+                            </div>
+                        </div>
+                        @if (transitionsError()) {
+                            <p-message severity="error" class="ui-message" role="alert">{{
+                                transitionsError()
+                            }}</p-message>
+                        }
+                        @if (created()) {
+                            <p-message severity="success" class="ui-message" role="status">
+                                Обращение создано. Ответы службы поддержки появятся в переписке.
+                            </p-message>
+                        }
+                        <section class="assignment" aria-labelledby="assignee-label">
+                            <h2 id="assignee-label">Исполнитель</h2>
+                            <p class="assignee-value">{{ assigneeLabel(ticket.assignee) }}</p>
+                        </section>
+                        <dl class="request-fields">
+                            @for (field of ticket.requestFieldValues; track field.fieldId) {
+                                <div>
+                                    <dt>{{ field.label }}</dt>
+                                    <dd>{{ fieldValue(field.value) }}</dd>
+                                </div>
+                            }
+                        </dl>
+                        <div class="discussion">
+                            <h2>Переписка</h2>
+                            <p class="muted">Сообщения видят заявитель и сотрудники поддержки.</p>
+                            @if (commentsLoading()) {
+                                <p class="muted" role="status">Загружаем сообщения…</p>
+                            }
+                            @for (comment of comments(); track comment.id) {
+                                <article class="comment">
+                                    <div class="comment-meta">
+                                        <strong>{{
+                                            comment.author?.displayName || comment.author?.name || 'Автор сообщения'
+                                        }}</strong
+                                        ><time>{{ comment.created?.iso8601 | date: 'dd.MM.yyyy, HH:mm' }}</time>
+                                    </div>
+                                    <p>{{ comment.body }}</p>
+                                </article>
+                            } @empty {
+                                @if (!commentsLoading() && !commentsError()) {
+                                    <div class="empty-discussion">
+                                        Сообщений пока нет. Здесь можно уточнить детали обращения.
+                                    </div>
+                                }
+                            }
+                            <form [formGroup]="commentForm" (ngSubmit)="sendComment()">
+                                <label for="comment">Сообщение</label
+                                ><textarea
+                                    pTextarea
+                                    [autoResize]="true"
+                                    [fluid]="true"
+                                    id="comment"
+                                    formControlName="body"
+                                    rows="4"
+                                    required
+                                    maxlength="10000"
+                                    placeholder="Дополнительные сведения или ответ службе поддержки"
+                                ></textarea>
+                                @if (commentsError()) {
+                                    <p-message severity="error" class="ui-message" role="alert">{{
+                                        commentsError()
+                                    }}</p-message>
+                                }
+                                <p-button
+                                    class="action-button"
+                                    type="submit"
+                                    [disabled]="
+                                        busy() || commentForm.invalid || !commentForm.controls.body.value.trim()
+                                    "
+                                >
+                                    {{ busy() ? 'Отправляем…' : 'Отправить сообщение' }}
+                                </p-button>
+                            </form>
+                        </div>
+                    </section>
+                </div>
+            } @else if (view() === 'request') {
+                <div class="page-heading"><h1>Обращение</h1></div>
+                <p-message severity="error" class="ui-message" role="alert">{{
+                    error() || 'Не удалось загрузить обращение.'
+                }}</p-message>
+                <p-button type="button" [text]="true" (onClick)="refreshRequest()">Повторить</p-button>
+                <a class="new-request-link" routerLink="/requests">К списку обращений</a>
+            } @else {
+                <div class="page-heading">
+                    <h1>Новое обращение</h1>
+                    <p>Выберите тему и расскажите, что произошло.</p>
+                </div>
+                @if (error()) {
+                    <p-message severity="error" class="ui-message" role="alert">{{ error() }}</p-message>
+                }
+                <div class="content-grid request-form-grid">
+                    <form class="panel form-column" [formGroup]="form" (ngSubmit)="submit()">
+                        <div class="field" aria-label="Тип обращения">
+                            <label class="type-label" id="request-type-label" for="request-type">Тема обращения</label>
+                            <p-select
+                                inputId="request-type"
+                                [options]="requestTypeOptions"
+                                [ngModel]="selectedType()"
+                                [ngModelOptions]="{ standalone: true }"
+                                (ngModelChange)="selectType($event)"
+                                optionLabel="name"
+                                optionValue="id"
+                                [fluid]="true"
+                                appendTo="body"
+                                [disabled]="busy()"
+                                ariaLabelledBy="request-type-label"
+                            />
+                        </div>
+                        @if (fieldsLoading()) {
+                            <div class="state-panel" role="status">
+                                <p-progressspinner
+                                    class="ui-spinner"
+                                    [style]="{ width: '1.5rem', height: '1.5rem' }"
+                                    ariaLabel="Загрузка"
+                                />
+                                Загружаем форму…
+                            </div>
+                        }
+                        @if (fieldsError()) {
+                            <p-message severity="error" class="ui-message" role="alert">{{ fieldsError() }}</p-message>
+                            <p-button
+                                [text]="true"
+                                severity="secondary"
+                                class="secondary-action"
+                                type="button"
+                                (onClick)="loadFields()"
+                            >
+                                Повторить загрузку
+                            </p-button>
+                        }
+                        @if (!fieldsLoading() && !fieldsError()) {
+                            @for (field of fields(); track field.fieldId) {
+                                <div class="field">
+                                    <label [for]="field.fieldId" [id]="field.fieldId + '-label'"
+                                        >{{ field.name }}
+                                        @if (field.required) {
+                                            <span class="required" aria-hidden="true">*</span>
+                                        }
+                                    </label>
+                                    @if (field.validValues?.length) {
+                                        <p-select
+                                            [inputId]="field.fieldId"
+                                            [formControlName]="field.fieldId"
+                                            [options]="field.validValues || []"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            [fluid]="true"
+                                            [invalid]="fieldInvalid(field.fieldId)"
+                                            [ariaLabelledBy]="field.fieldId + '-label'"
+                                            [attr.aria-describedby]="
+                                                fieldInvalid(field.fieldId) ? field.fieldId + '-hint' : null
+                                            "
+                                            placeholder="Выберите значение"
+                                            appendTo="body"
+                                        />
+                                    } @else if (field.fieldId === 'description') {
+                                        <textarea
+                                            pTextarea
+                                            [autoResize]="true"
+                                            [fluid]="true"
+                                            [id]="field.fieldId"
+                                            [formControlName]="field.fieldId"
+                                            rows="6"
+                                            [required]="field.required"
+                                            [attr.aria-describedby]="
+                                                fieldInvalid(field.fieldId) ? field.fieldId + '-hint' : null
+                                            "
+                                            [invalid]="fieldInvalid(field.fieldId)"
+                                            [attr.aria-invalid]="fieldInvalid(field.fieldId)"
+                                            placeholder="Что произошло, когда появилась ошибка и что уже удалось проверить"
+                                        ></textarea>
+                                    } @else {
+                                        <input
+                                            pInputText
+                                            [fluid]="true"
+                                            [id]="field.fieldId"
+                                            [formControlName]="field.fieldId"
+                                            [required]="field.required"
+                                            [attr.aria-describedby]="
+                                                fieldInvalid(field.fieldId) ? field.fieldId + '-hint' : null
+                                            "
+                                            [invalid]="fieldInvalid(field.fieldId)"
+                                            [attr.aria-invalid]="fieldInvalid(field.fieldId)"
+                                            [placeholder]="
+                                                field.fieldId === 'customfield_12900' ? 'Например, AB-1234' : ''
+                                            "
+                                        />
+                                    }
+                                    @if (fieldInvalid(field.fieldId)) {
+                                        <p class="field-hint field-error" [id]="field.fieldId + '-hint'" role="alert">
+                                            Заполните обязательное поле.
+                                        </p>
+                                    }
+                                </div>
+                            }
+                            <div class="form-footer">
+                                <p-button class="action-button" type="submit" [disabled]="busy() || !fields().length">
+                                    {{ busy() ? 'Создаём обращение…' : 'Создать обращение' }}
+                                </p-button>
+                            </div>
+                        }
+                    </form>
+                </div>
+            }
+        </main>
+    </div>
+</div>

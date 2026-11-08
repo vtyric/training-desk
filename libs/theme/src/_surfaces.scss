@@ -1,0 +1,61 @@
+@mixin install {
+    .panel {
+        border: 1px solid var(--desk-color-line);
+        border-radius: var(--desk-radius);
+        background: var(--desk-color-surface);
+        box-shadow: var(--desk-shadow-panel);
+    }
+    .error-banner,
+    .success-note {
+        padding: 13px 15px;
+        border: 1px solid var(--desk-color-error-line);
+        border-radius: var(--desk-radius-sm);
+        color: var(--desk-color-error);
+        background: var(--desk-color-error-soft);
+        font-size: var(--desk-font-size-small);
+        line-height: var(--desk-line-height-body);
+    }
+    .success-note {
+        border-color: var(--desk-color-success-line);
+        color: var(--desk-color-success);
+        background: var(--desk-color-success-soft);
+    }
+    .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 11px;
+        border-radius: var(--desk-radius-sm);
+        color: var(--desk-color-primary-hover);
+        background: var(--desk-color-soft);
+        font-size: var(--desk-font-size-small);
+        font-weight: var(--desk-font-weight-strong);
+    }
+    .status span {
+        width: 5px;
+        height: 5px;
+        border-radius: var(--desk-radius-pill);
+        background: currentColor;
+    }
+    .state-panel {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-height: 100px;
+        color: var(--desk-color-muted);
+    }
+    .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--desk-color-decorative);
+        border-top-color: var(--desk-color-primary);
+        border-radius: var(--desk-radius-pill);
+        animation: desk-spin 0.8s linear infinite;
+    }
+    @keyframes desk-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+}

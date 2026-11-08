@@ -1,0 +1,48 @@
+@use 'tokens';
+
+/// Shared adapters for app layout tokens. PrimeNG owns controls, focus and error visuals.
+@mixin install {
+    :root {
+        --desk-color-canvas: var(--p-surface-50);
+        --desk-color-surface: var(--p-content-background);
+        --desk-color-ink: var(--p-text-color);
+        --desk-color-muted: var(--p-text-muted-color);
+        --desk-color-line: var(--p-content-border-color);
+        --desk-color-line-soft: var(--p-content-border-color);
+        --desk-color-input-line: var(--p-form-field-border-color);
+        --desk-color-primary: var(--p-primary-color);
+        --desk-color-primary-hover: var(--p-primary-hover-color);
+        --desk-color-primary-ink: var(--p-primary-contrast-color);
+        --desk-color-soft: var(--p-highlight-background);
+        --desk-color-error: var(--p-red-600);
+        @include tokens.typography;
+        --desk-radius-sm: var(--p-form-field-border-radius);
+        --desk-radius: var(--p-content-border-radius);
+        --desk-shadow-panel: none;
+        color-scheme: light;
+    }
+    :root.app-dark {
+        --desk-color-canvas: var(--p-surface-950);
+        color-scheme: dark;
+    }
+    button,
+    input,
+    textarea {
+        font-family: inherit;
+    }
+    .field-error,
+    .required {
+        color: var(--p-form-field-invalid-border-color);
+    }
+    .required {
+        margin-inline-start: 0.25rem;
+    }
+    .ui-message {
+        display: block;
+        margin-block: 1rem;
+    }
+    .ui-spinner {
+        inline-size: 1.5rem;
+        block-size: 1.5rem;
+    }
+}

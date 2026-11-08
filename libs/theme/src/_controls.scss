@@ -1,0 +1,125 @@
+@mixin install {
+    button,
+    input,
+    select,
+    textarea {
+        font: inherit;
+    }
+    button,
+    a,
+    input,
+    select,
+    textarea {
+        -webkit-tap-highlight-color: transparent;
+    }
+    button {
+        cursor: pointer;
+    }
+    button:disabled {
+        cursor: not-allowed;
+        opacity: var(--desk-disabled-opacity);
+    }
+    :focus-visible {
+        outline: var(--desk-focus-width) solid var(--desk-color-focus);
+        outline-offset: var(--desk-focus-offset);
+    }
+    ::selection {
+        background: var(--desk-color-selection);
+    }
+    input,
+    select,
+    textarea {
+        display: block;
+        width: 100%;
+        padding: 13px 14px;
+        border: 1px solid var(--desk-color-input-line);
+        border-radius: var(--desk-radius-sm);
+        color: var(--desk-color-ink);
+        background: var(--desk-color-surface);
+        font-size: var(--desk-font-size-input);
+        line-height: var(--desk-line-height-control);
+        transition: border-color var(--desk-transition);
+    }
+    input::placeholder,
+    textarea::placeholder {
+        color: var(--desk-color-muted);
+    }
+    input:hover,
+    select:hover,
+    textarea:hover {
+        border-color: var(--desk-color-primary);
+    }
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    select {
+        min-height: 47px;
+    }
+    [aria-invalid='true'] {
+        border-color: var(--desk-color-error);
+    }
+    [aria-invalid='true'] + .field-hint,
+    .required {
+        color: var(--desk-color-error);
+    }
+    .required {
+        margin-left: 3px;
+    }
+    .primary-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-height: 47px;
+        padding: 14px 20px;
+        border: 1px solid var(--desk-color-primary);
+        border-radius: var(--desk-radius-sm);
+        color: var(--desk-color-primary-ink);
+        background: var(--desk-color-primary);
+        font-size: var(--desk-font-size-small);
+        font-weight: var(--desk-font-weight-medium);
+        white-space: nowrap;
+        transition: background var(--desk-transition);
+    }
+    .primary-button:hover {
+        background: var(--desk-color-primary-hover);
+    }
+    .primary-button span {
+        font-size: var(--desk-font-size-icon);
+        line-height: 1;
+    }
+    .text-button {
+        padding: 7px 0;
+        border: 0;
+        color: var(--desk-color-primary-hover);
+        background: transparent;
+        font-size: var(--desk-font-size-small);
+        font-weight: var(--desk-font-weight-medium);
+    }
+    .text-button:hover {
+        text-decoration: underline;
+    }
+    .full-width {
+        width: 100%;
+        margin-top: 28px;
+    }
+    @media (width <= 480px) {
+        input,
+        select,
+        textarea {
+            font-size: var(--desk-font-size-input-mobile);
+        }
+        .primary-button {
+            gap: 12px;
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation: none !important;
+            transition: none !important;
+        }
+    }
+}

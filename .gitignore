@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.nx/
+.angular/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+.DS_Store
+backups/
+/.idea/
+
+.local/

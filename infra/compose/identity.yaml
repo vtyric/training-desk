@@ -1,0 +1,62 @@
+name: training-identity
+services:
+    ldap:
+        build:
+            context: .
+            dockerfile: apps/identity/ldap/Dockerfile
+        environment:
+            LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?Generate .env}
+            LDAP_ALICE_PASSWORD: ${LDAP_ALICE_PASSWORD:?Generate .env}
+            LDAP_SUPPORT_PASSWORD: ${LDAP_SUPPORT_PASSWORD:?Run node tools/setup-env.mjs --extend}
+            LDAP_DENIED_PASSWORD: ${LDAP_DENIED_PASSWORD:?Generate .env}
+        volumes:
+            - ldap-data:/var/lib/ldap
+        healthcheck:
+            test: ['CMD-SHELL', 'ldapsearch -x -H ldap://localhost:1389 -b "" -s base supportedLDAPVersion >/dev/null']
+            interval: 5s
+            timeout: 3s
+            retries: 20
+        restart: unless-stopped
+    identity:
+        build:
+            context: .
+            dockerfile: apps/identity/Dockerfile
+        environment:
+            KC_DB: postgres
+            KC_DB_URL: jdbc:postgresql://postgres:5432/training
+            KC_DB_SCHEMA: identity
+            KC_DB_USERNAME: identity
+            KC_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Generate .env}
+            KC_HOSTNAME: ${IDENTITY_PUBLIC_URL:-http://localhost:8081}
+            KC_HTTP_ENABLED: 'true'
+            KC_HEALTH_ENABLED: 'true'
+            KC_BOOTSTRAP_ADMIN_USERNAME: ${IDENTITY_ADMIN_USERNAME:-administrator}
+            KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDENTITY_ADMIN_PASSWORD:?Generate .env}
+            IDENTITY_DIRECTORY_CLIENT_SECRET: ${IDENTITY_DIRECTORY_CLIENT_SECRET:?Run node tools/setup-env.mjs --extend}
+            LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?Generate .env}
+            SERVICE_DESK_PUBLIC_URL: ${DOCKER_BASE_URL:-http://localhost:8080}
+            SERVICE_DESK_DEV_URL: ${BASE_URL:-http://localhost:4200}
+            API_DOCS_DEV_URL: ${API_DOCS_DEV_URL:-http://localhost:3000}
+            STUDENT_ORIGIN: ${STUDENT_ORIGIN:-http://localhost:4300}
+            STUDENT_REDIRECT_URI: ${STUDENT_REDIRECT_URI:-http://localhost:4300/auth/callback}
+        ports:
+            - '${IDENTITY_BIND_ADDRESS:-127.0.0.1}:${IDENTITY_HTTP_PORT:-8081}:8080'
+        depends_on:
+            postgres:
+                condition: service_healthy
+            ldap:
+                condition: service_healthy
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3; grep -q '200' <&3",
+                ]
+            interval: 5s
+            timeout: 4s
+            start_period: 40s
+            retries: 30
+        mem_limit: 1024m
+        restart: unless-stopped
+volumes:
+    ldap-data:

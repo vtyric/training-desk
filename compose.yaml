@@ -1,0 +1,41 @@
+name: training-desk
+services:
+    ldap:
+        build:
+            context: .
+        extends:
+            file: infra/compose/identity.yaml
+            service: ldap
+    identity:
+        build:
+            context: .
+        extends:
+            file: infra/compose/identity.yaml
+            service: identity
+    postgres:
+        extends:
+            file: infra/compose/postgres.yaml
+            service: postgres
+        volumes:
+            - ./infra/postgres/init-identity.sh:/docker-entrypoint-initdb.d/10-identity.sh:ro
+    migrate:
+        build:
+            context: .
+        extends:
+            file: infra/compose/service-desk.yaml
+            service: migrate
+    service-desk:
+        build:
+            context: .
+        extends:
+            file: infra/compose/service-desk.yaml
+            service: service-desk
+        environment:
+            OIDC_INTERNAL_ISSUER_URL: http://identity:8080/realms/training
+        depends_on:
+            identity:
+                condition: service_healthy
+volumes:
+    postgres-data:
+    ldap-data:
+    service-desk-settings:

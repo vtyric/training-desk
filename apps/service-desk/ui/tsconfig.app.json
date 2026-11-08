@@ -1,0 +1,5 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": { "outDir": "../../../dist/out-tsc/service-desk-ui", "types": [] },
+    "include": ["src/**/*.ts"]
+}

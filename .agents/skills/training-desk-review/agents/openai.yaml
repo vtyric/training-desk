@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Проверка изменений'
+    short_description: 'Проверка архитектуры и изменений учебного контура'
+    default_prompt: 'Используй $training-desk-review для работы с учебным Service Desk в этом репозитории.'

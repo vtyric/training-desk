@@ -1,0 +1,100 @@
+@mixin install {
+    @font-face {
+        font-family: Montserrat;
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url('/brand/montserrat-cyrillic.woff2') format('woff2');
+        unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+    }
+    @font-face {
+        font-family: Montserrat;
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url('/brand/montserrat-latin.woff2') format('woff2');
+        unicode-range:
+            U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F,
+            U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    }
+    :root {
+        font-family: var(--desk-font-family);
+        font-size: var(--desk-font-size-body);
+        font-weight: var(--desk-font-weight-normal);
+        line-height: var(--desk-line-height-body);
+        color: var(--desk-color-ink);
+        background: var(--desk-color-canvas);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+    }
+    * {
+        box-sizing: border-box;
+    }
+    body {
+        margin: 0;
+    }
+    a {
+        color: var(--desk-color-primary);
+    }
+    h1 {
+        margin: 0;
+        font-size: var(--desk-font-size-title);
+        font-weight: var(--desk-font-weight-medium);
+        letter-spacing: var(--desk-tracking-title);
+        line-height: var(--desk-line-height-heading);
+    }
+    h2 {
+        margin: 0 0 8px;
+        font-size: var(--desk-font-size-section);
+        font-weight: var(--desk-font-weight-medium);
+        letter-spacing: var(--desk-tracking-section);
+        line-height: var(--desk-line-height-control);
+    }
+    label {
+        display: block;
+        margin-bottom: 9px;
+        color: var(--desk-color-ink);
+        font-size: var(--desk-font-size-small);
+        font-weight: var(--desk-font-weight-medium);
+    }
+    .eyebrow {
+        display: block;
+        margin-bottom: 15px;
+        color: var(--desk-color-primary-hover);
+        font-size: var(--desk-font-size-small);
+        font-weight: var(--desk-font-weight-strong);
+        letter-spacing: var(--desk-tracking-eyebrow);
+    }
+    .section-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+        color: var(--desk-color-primary);
+        font-size: var(--desk-font-size-small);
+        font-weight: var(--desk-font-weight-medium);
+    }
+    .section-label span {
+        color: var(--desk-color-ink);
+    }
+    .muted,
+    .field-hint {
+        color: var(--desk-color-muted);
+        font-size: var(--desk-font-size-small);
+        line-height: var(--desk-line-height-body);
+    }
+    .field-hint {
+        margin: 8px 0 0;
+    }
+    dt {
+        margin-bottom: 8px;
+        color: var(--desk-color-muted);
+        font-size: var(--desk-font-size-small);
+    }
+    dd {
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+    }
+}

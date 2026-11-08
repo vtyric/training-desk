@@ -1,0 +1,1 @@
+ALTER TABLE "training_users" ADD COLUMN "identity_expires_at" timestamp with time zone;

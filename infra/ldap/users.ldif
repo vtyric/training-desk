@@ -1,0 +1,43 @@
+# Template only: render password hashes before ldapadd. Never deploy the literal placeholders.
+dn: dc=training,dc=local
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+dc: training
+o: Training Service Desk
+
+dn: ou=people,dc=training,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: uid=alice,ou=people,dc=training,dc=local
+objectClass: inetOrgPerson
+uid: alice
+cn: Алиса
+sn: Иванова
+employeeType: demo
+userPassword: __ALICE_PASSWORD_HASH__
+
+dn: uid=support,ou=people,dc=training,dc=local
+objectClass: inetOrgPerson
+uid: support
+cn: Сергей
+sn: Петров
+employeeType: demo
+userPassword: __SUPPORT_PASSWORD_HASH__
+
+dn: uid=denied,ou=people,dc=training,dc=local
+objectClass: inetOrgPerson
+uid: denied
+cn: Пользователь
+sn: без доступа
+employeeType: demo
+userPassword: __DENIED_PASSWORD_HASH__
+
+dn: uid=disabled,ou=people,dc=training,dc=local
+objectClass: inetOrgPerson
+uid: disabled
+cn: Отключённый пользователь
+sn: Пользователь
+employeeType: demo
+userPassword: {CRYPT}*

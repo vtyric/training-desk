@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Backend учебного Service Desk'
+    short_description: 'Изменения backend в слоях API, logic и DAL'
+    default_prompt: 'Используй $training-desk-backend для работы с учебным Service Desk в этом репозитории.'

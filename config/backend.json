@@ -1,0 +1,43 @@
+{
+    "version": 1,
+    "revision": 0,
+    "server": {
+        "host": "0.0.0.0",
+        "port": 3000,
+        "bodyLimit": 131072
+    },
+    "database": {
+        "urlEnv": "DATABASE_URL",
+        "poolMax": 10
+    },
+    "identity": {
+        "issuerUrlEnv": "OIDC_ISSUER_URL",
+        "internalIssuerUrlEnv": "OIDC_INTERNAL_ISSUER_URL",
+        "audience": "service-desk",
+        "allowInsecureLocal": true,
+        "directoryClientId": "service-desk-directory",
+        "directoryClientSecretEnv": "IDENTITY_DIRECTORY_CLIENT_SECRET",
+        "directoryTimeoutMs": 10000
+    },
+    "service": {
+        "name": "Service Desk",
+        "projectKey": "HELP",
+        "serviceDeskId": "3"
+    },
+    "webhooks": {
+        "pollIntervalMs": 1000,
+        "timeoutMs": 10000,
+        "batchSize": 20,
+        "retryDelaysMs": [10000, 60000, 300000, 900000]
+    },
+    "ui": {
+        "enabled": true,
+        "publicClientId": "service-desk-test",
+        "realm": "training",
+        "identityUrlEnv": "IDENTITY_PUBLIC_URL"
+    },
+    "teams": {},
+    "security": {
+        "allowLegacyApiTokens": false
+    }
+}

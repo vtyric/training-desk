@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Identity учебного контура'
+    short_description: 'Keycloak, роли, LDAP federation и тема входа'
+    default_prompt: 'Используй $training-desk-identity для настройки отдельного Identity учебного контура.'

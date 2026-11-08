@@ -1,0 +1,7 @@
+@use 'theme';
+@use 'federation';
+@use '../../../libs/ui/src/identity';
+
+@include theme.install($native-controls: false);
+@include identity.install();
+@include federation.install();

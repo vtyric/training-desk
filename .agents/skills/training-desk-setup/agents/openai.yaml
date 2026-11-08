@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Установка учебного контура'
+    short_description: 'Подготовка и запуск проекта на новой машине'
+    default_prompt: 'Используй $training-desk-setup для работы с учебным Service Desk в этом репозитории.'

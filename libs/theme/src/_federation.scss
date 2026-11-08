@@ -1,0 +1,215 @@
+/// Geometry for the independent identity provider; controls and typography come from theme.install().
+@mixin install {
+    .federation-page {
+        background: var(--desk-color-surface);
+    }
+    .federation-shell {
+        display: grid;
+        grid-template-columns: 1.85fr 1fr;
+        min-height: 100svh;
+    }
+    .federation-skip {
+        position: fixed;
+        top: -80px;
+        left: 16px;
+        z-index: 5;
+        padding: 12px;
+        background: var(--desk-color-surface);
+    }
+    .federation-skip:focus {
+        top: 12px;
+    }
+    .federation-art {
+        position: relative;
+        min-width: 0;
+        overflow: hidden;
+        background: var(--desk-color-primary);
+        isolation: isolate;
+    }
+    .federation-art-grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.25;
+        background-image:
+            linear-gradient(0deg, var(--desk-color-primary-ink) 1px, transparent 1px),
+            linear-gradient(90deg, var(--desk-color-primary-ink) 1px, transparent 1px);
+        background-size: 120px 120px;
+        transform: skewY(-18deg) scale(1.7);
+    }
+    .federation-orbit {
+        position: absolute;
+        border: 1px solid var(--desk-color-primary-ink);
+        border-radius: var(--desk-radius-pill);
+        opacity: 0.5;
+        width: 85vw;
+        height: 85vw;
+        max-width: 1500px;
+        max-height: 1500px;
+        left: -62%;
+        top: -40%;
+        transform: rotate(-25deg);
+    }
+    .federation-orbit-two {
+        width: 100vw;
+        height: 100vw;
+        left: -75%;
+        top: -52%;
+        opacity: 0.3;
+    }
+    .federation-orbit-three {
+        width: 115vw;
+        height: 115vw;
+        left: -90%;
+        top: -64%;
+        opacity: 0.2;
+    }
+    .federation-plane {
+        position: absolute;
+        width: 65%;
+        height: 58%;
+        right: -22%;
+        bottom: -17%;
+        background: var(--desk-color-brand-accent);
+        transform: rotate(36deg);
+        border-radius: var(--desk-radius-lg);
+        opacity: 0.75;
+    }
+    .federation-art-mark {
+        position: absolute;
+        top: 48%;
+        left: 48%;
+        transform: translate(-50%, -50%);
+        color: var(--desk-color-primary-ink);
+        font-size: clamp(120px, 18vw, 260px);
+        font-weight: var(--desk-font-weight-medium);
+        line-height: 1;
+        letter-spacing: -0.08em;
+    }
+    .federation-art-mark span {
+        position: absolute;
+        top: -10%;
+        right: -54%;
+        font-size: 0.55em;
+        font-weight: var(--desk-font-weight-normal);
+    }
+    .federation-content {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding: 72px clamp(28px, 4vw, 70px) 28px;
+        background: var(--desk-color-surface);
+    }
+    .federation-form-wrap {
+        width: 100%;
+        max-width: 400px;
+        margin: auto;
+    }
+    .federation-brand {
+        margin: 0 0 40px;
+        color: var(--desk-color-primary);
+        font-size: var(--desk-font-size-section);
+        font-weight: var(--desk-font-weight-strong);
+        letter-spacing: var(--desk-tracking-section);
+    }
+    .federation-form-wrap h1 {
+        margin: 0 0 12px;
+        font-size: var(--desk-font-size-login-title);
+        font-weight: var(--desk-font-weight-strong);
+        letter-spacing: var(--desk-tracking-section);
+        line-height: 1.25;
+    }
+    .federation-form-wrap .federation-page-title {
+        margin: 0 0 24px;
+        font-size: var(--desk-font-size-section);
+        font-weight: var(--desk-font-weight-medium);
+        line-height: var(--desk-line-height-body);
+    }
+    .federation-action-content {
+        overflow-wrap: anywhere;
+    }
+    .federation-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 24px;
+    }
+    .federation-action-content input[type='submit'] {
+        width: auto;
+        white-space: normal;
+    }
+    .federation-action-content .instruction {
+        line-height: var(--desk-line-height-body);
+    }
+    .federation-action-content .federation-field > label {
+        display: block;
+        margin-bottom: 8px;
+    }
+    .federation-intro {
+        margin: 0 0 32px;
+        color: var(--desk-color-muted);
+    }
+    .federation-field {
+        margin-bottom: 24px;
+    }
+    .federation-submit {
+        justify-content: center;
+        min-width: 110px;
+        margin-top: 6px;
+    }
+    .federation-login-submit {
+        width: 100%;
+        margin-top: 8px;
+    }
+    .federation-note {
+        margin-top: 32px;
+        color: var(--desk-color-muted);
+        font-size: var(--desk-font-size-small);
+        line-height: var(--desk-line-height-body);
+    }
+    @media (width <= 1100px) {
+        .federation-shell {
+            grid-template-columns: 1.3fr 1fr;
+        }
+        .federation-content {
+            padding: 50px 30px 25px;
+        }
+    }
+    @media (width <= 760px) {
+        .federation-shell {
+            display: block;
+        }
+        .federation-art {
+            min-height: 160px;
+            height: 22svh;
+            max-height: 220px;
+        }
+        .federation-art-mark {
+            font-size: 120px;
+            left: 48%;
+        }
+        .federation-orbit {
+            width: 130vw;
+            height: 130vw;
+            top: -250%;
+            left: -30%;
+        }
+        .federation-orbit-two {
+            top: -220%;
+            left: -10%;
+        }
+        .federation-orbit-three {
+            top: -190%;
+            left: 10%;
+        }
+        .federation-content {
+            min-height: 78svh;
+            padding: 35px 24px 24px;
+        }
+        .federation-form-wrap {
+            margin: 0 auto;
+        }
+        .federation-form-wrap h1 {
+            margin-bottom: 20px;
+        }
+    }
+}

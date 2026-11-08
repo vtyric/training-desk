@@ -1,0 +1,20 @@
+{
+    "reference": "https://artsofte.ru",
+    "assets": [
+        {
+            "file": "montserrat-cyrillic.woff2",
+            "source": "https://artsofte.ru/sites/all/themes/artsofte_uikit/fonts/montserrat/montserrat-cyrillic.woff2",
+            "sha256": "a187b077090fe8ae3fd2d7496aabbeae604819c718a282e0afc92df72b450766"
+        },
+        {
+            "file": "montserrat-latin.woff2",
+            "source": "https://artsofte.ru/sites/all/themes/artsofte_uikit/fonts/montserrat/montserrat-latin.woff2",
+            "sha256": "06b16db7a969135d48d38c49183be7fb88d4452e2a3011957c7851941f4e4879"
+        },
+        {
+            "file": "OFL.txt",
+            "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/montserrat/OFL.txt"
+        }
+    ],
+    "references": ["https://artsofte.ru/"]
+}

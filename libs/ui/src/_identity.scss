@@ -1,0 +1,98 @@
+@use 'tokens';
+
+/// Native controls for Keycloak FTL. Angular apps use the actual PrimeNG components.
+/// Consume the same semantic colors/radii and typography instead of an application palette.
+@mixin install {
+    :root,
+    [data-theme='abanking'],
+    [data-theme='artsofte'] {
+        @include tokens.typography;
+    }
+    .federation-page {
+        color-scheme: light;
+        button,
+        input,
+        select,
+        textarea {
+            font: inherit;
+        }
+        a,
+        button,
+        input {
+            -webkit-tap-highlight-color: transparent;
+        }
+        :focus-visible {
+            outline: 2px solid var(--desk-color-focus);
+            outline-offset: 2px;
+        }
+        input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='submit']),
+        select,
+        textarea {
+            display: block;
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            border: 1px solid var(--desk-color-line);
+            border-radius: var(--desk-radius-sm);
+            color: var(--desk-color-ink);
+            background: var(--desk-color-surface);
+            font-size: var(--desk-font-size-input);
+            line-height: 1.5;
+            transition: border-color var(--desk-transition);
+        }
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--desk-color-muted);
+        }
+        input:hover,
+        select:hover,
+        textarea:hover {
+            border-color: var(--desk-color-primary);
+        }
+        input[aria-invalid='true'],
+        textarea[aria-invalid='true'] {
+            border-color: var(--desk-color-error);
+        }
+        input:disabled,
+        button:disabled {
+            opacity: var(--desk-disabled-opacity);
+            cursor: not-allowed;
+        }
+        input[type='hidden'] {
+            display: none;
+        }
+        .primary-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 10px 18px;
+            border: 1px solid var(--desk-color-primary);
+            border-radius: var(--desk-radius-sm);
+            color: var(--desk-color-primary-ink);
+            background: var(--desk-color-primary);
+            font-weight: var(--desk-font-weight-medium);
+            line-height: 1.5;
+            text-decoration: none;
+            cursor: pointer;
+            transition:
+                background var(--desk-transition),
+                border-color var(--desk-transition);
+        }
+        .primary-button:hover {
+            border-color: var(--desk-color-primary-hover);
+            background: var(--desk-color-primary-hover);
+        }
+        .federation-field > label {
+            display: block;
+            margin-bottom: 8px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            input,
+            button,
+            .primary-button {
+                transition: none;
+            }
+        }
+    }
+}
