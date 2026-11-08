@@ -1,172 +1,211 @@
-# 3. Интеграция с Service Desk
+# 3. Service Desk: Swagger и интеграция
 
-Приложение команды принимает события удалённого Service Desk, показывает обращения сотрудникам и сохраняет их действия через API: назначение, комментарий и смену статуса.
+После этой инструкции сервис команды сможет получать новые обращения, читать их, назначать исполнителя, вести переписку и менять статус. Сначала запросы проверяются вручную в Swagger, затем повторяются из собственного приложения.
 
-Для начала нужны адреса Identity и Service Desk, учётки разных ролей и отдельный ключ подписи webhook. Команда администрирует пользователей и клиентов по [первой инструкции](01-keycloak-and-roles.md), вход подключается по [второй](02-openid-connect.md). Исходники стенда и серверная `.env` для интеграции не требуются.
+## 1. Вход в Swagger
 
-В примерах `https://desk.example.ru` заменяется на адрес выданного Service Desk, `HELP-123` — на ключ созданного обращения. Защищённые запросы содержат `Authorization: Bearer <ACCESS_TOKEN>`, запросы с JSON-телом — также `Content-Type: application/json`.
+1. Открывается [Swagger Service Desk](https://desk.makar-star.space/docs/).
+2. Нажимается **Authorize** вверху страницы.
+3. Выбирается OAuth-вход **identityOAuth**. Клиент — `service-desk-swagger`, scopes — `openid`, `profile`, `email`. Client secret не нужен.
+4. Нажимается **Authorize**, в открывшейся форме вводятся логин `desk-admin` и его пароль.
+5. После возврата в Swagger окно закрывается кнопкой **Close**.
 
-## Локальная схема: proxy для API, туннель для webhook
+`desk-admin` — учётка realm `training` с правами Service Desk. `administrator` управляет Keycloak и здесь не используется. Пароль не вводится в тело API-запросов: Swagger сам добавит access token в заголовок `Authorization`.
+
+Для смены пользователя снова открывается **Authorize**, нажимается **Logout**, затем выполняется новый вход. Если уже действует общая сессия Keycloak, без Logout повторный вход может использовать прежнюю учётку.
+
+## 2. Первый запрос и права
+
+1. Раскрывается **Моя учётная запись → GET /api/me**.
+2. Нажимается **Try it out → Execute**.
+3. В блоке **Server response** ожидается `200` и такой состав ответа:
+
+```json
+{
+    "username": "desk-admin",
+    "role": "admin",
+    "roleName": "Администратор службы поддержки",
+    "teamId": "UUID вашей службы"
+}
+```
+
+Значение `teamId` копируется из настоящего ответа. Это UUID. `demo` — значение `team_slug` в Keycloak, его нельзя подставить вместо UUID.
+
+Далее раскрывается **Настройки службы поддержки → GET /api/settings**, выполняется **Try it out → Execute**. Ответ `200` содержит весь JSON настроек. В **Response headers** находится `etag`, например `"7"`; он нужен при сохранении изменений.
+
+При входе как `support` или `alice` GET настроек должен вернуть `403`. После Logout запрос без входа должен вернуть `401`. Затем для следующих шагов снова выполняется вход как `desk-admin`.
+
+## 3. Локальный backend для webhook
+
+Адрес локального приложения существует только на компьютере студента. Удалённый Service Desk не может обратиться к его `http://localhost:3000` напрямую.
 
 ```text
-Браузер localhost:4300 → proxy/backend команды → удалённый Service Desk
-Удалённый Service Desk → HTTPS-туннель → backend команды localhost:3000
+Браузер localhost:4300 → локальный proxy → Service Desk на сервере
+Service Desk на сервере → публичный HTTPS-туннель → backend localhost:3000
 ```
 
-Proxy пересылает исходящие запросы браузера и решает вопрос CORS. Туннель делает входящий обработчик webhook доступным удалённому серверу. Для самого OIDC-входа туннель не нужен: на localhost возвращается браузер пользователя.
+Для первой проверки можно сохранить [готовый приёмник](examples/webhook-receiver.mjs) в свой проект как `webhook-receiver.mjs`. Исходники серверного контура для этого не нужны: достаточно одного файла. В локальном файле `.env.local` задаётся выданный ключ:
 
-### Пример dev-proxy для Vite
-
-```ts
-// vite.config.ts в проекте команды
-import { defineConfig } from 'vite';
-
-export default defineConfig({
-    server: {
-        port: 4300,
-        strictPort: true,
-        proxy: {
-            '/api': {
-                target: 'http://localhost:3000',
-                changeOrigin: true,
-            },
-            '/desk-api': {
-                target: 'https://desk.example.ru',
-                changeOrigin: true,
-                rewrite: (path) => path.replace(/^\/desk-api/, ''),
-            },
-        },
-    },
-});
+```dotenv
+TEAM_WEBHOOK_SECRET=выданный_ключ_вашей_службы
 ```
 
-`/api` ведёт на собственный backend, `/desk-api` — на удалённый Service Desk. Например, `/desk-api/rest/servicedeskapi/request` попадёт в его `/rest/servicedeskapi/request`. Заголовок `Authorization` сохраняется. В другом стеке настраивается аналогичная пересылка.
+Запуск с Node.js 22:
 
-Браузерный адаптер использует экземпляр `keycloak` из второй инструкции:
-
-```ts
-const deskOrigin = 'https://desk.example.ru';
-
-export async function deskFetch(path: string, init: RequestInit = {}) {
-    const target = new URL(path, deskOrigin);
-    if (target.origin !== deskOrigin) throw new Error('Неизвестный адрес API');
-    if (!(target.pathname.startsWith('/rest/') || target.pathname.startsWith('/api/'))) {
-        throw new Error('Неизвестный путь API');
-    }
-    await keycloak.updateToken(30);
-    if (!keycloak.token) throw new Error('Вход не выполнен');
-
-    const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${keycloak.token}`);
-    return fetch(`/desk-api${target.pathname}${target.search}`, { ...init, headers });
-}
-
-const response = await deskFetch('/api/me');
-if (!response.ok) throw new Error(`API ответил ${response.status}`);
-const currentUser = await response.json();
+```sh
+node --env-file=.env.local webhook-receiver.mjs
 ```
 
-Ссылки `_links.next` и `_links.self` в ответах API абсолютные. Их можно передавать этому же адаптеру: он проверит origin и направит запрос через proxy. Прямой `fetch` удалённой ссылки снова станет междоменным запросом браузера.
+Пример сохраняет принятые события в `.data/service-desk-events.ndjson` и печатает ключ обращения в терминале. Файл `.env.local` и каталог `.data` добавляются в `.gitignore` собственного проекта. Пример слушает порт `3000`; другой backend на этом порту на время первой проверки останавливается. Далее маршрут переносится в собственный backend команды. Демонстрационный приёмник не заменяет сохранение событий и задач в БД приложения.
 
-Dev-proxy Vite работает только при разработке. На стенде команды пересылку выполняет reverse proxy или backend.
+На backend команды создаётся маршрут **POST /webhooks/service-desk**. Перед разбором JSON он получает исходные байты тела, проверяет подпись, сохраняет событие и отвечает `200` или `204`. Формат подписи приведён в шаге 6.
 
-## Приём webhook на localhost
-
-Backend команды поднимает `POST /webhooks/service-desk`, например на порту `3000`. После установки `cloudflared` для него запускается туннель:
+После запуска backend и установки `cloudflared` в отдельном терминале выполняется:
 
 ```sh
 cloudflared tunnel --url http://localhost:3000
 ```
 
-Из выданного hostname получается адрес получателя:
+Cloudflare напечатает публичный адрес. Например:
+
+```text
+https://random-name.trycloudflare.com
+```
+
+Полный адрес получателя получается добавлением пути:
 
 ```text
 https://random-name.trycloudflare.com/webhooks/service-desk
 ```
 
-Quick Tunnel работает до остановки процесса и меняет hostname при новом запуске. Интерактивная авторизация туннеля по email для webhook не подходит: Service Desk не проходит браузерный вход. Получатель проверяет HMAC-подпись.
+В инструкции это пример: у каждого запущенного туннеля свой hostname. Процессы backend и туннеля остаются запущенными во время проверки. После нового запуска Quick Tunnel hostname обычно меняется — новый URL сохраняется через PATCH ниже.
 
-Адрес webhook должен быть публичным HTTPS URL на стандартном порту `443`. Внутренние адреса, `http://localhost:3000` и перенаправления отправителем не принимаются.
+Webhook требует публичный HTTPS URL на порту `443`, без браузерной авторизации и перенаправлений. URL `http://localhost:3000/...` API настроек не примет. Для OpenID callback на localhost туннель не нужен — там возвращается браузер пользователя.
 
-## Первый получатель в настройках Service Desk
+## 4. Сохранение адреса webhook через Swagger
 
-Настройки меняются с access token учётки приложения, имеющей роль `service-desk:admin`. Токен администратора консоли `master` его не заменяет.
+На одну службу приходится один получатель. У всех учёток с `team_slug=demo` общий `teamId` и общий URL. Перед заменой адреса проверяется, что он не используется другой командой. Отдельный клиент Keycloak не создаёт отдельную службу Service Desk.
 
-```sh
-export DESK_URL='https://desk.example.ru'
-export DESK_ADMIN_ACCESS_TOKEN='<access_token администратора приложения>'
-```
+### Если получателя ещё нет
 
-Сначала API возвращает идентификатор службы и актуальные настройки:
+1. Выполняется GET `/api/me`, копируется `teamId`.
+2. Выполняется GET `/api/settings`, проверяется отсутствие `teams[teamId]`, копируется актуальный ETag.
+3. В локальной консоли браузера или Node получается текущее время:
 
-```sh
-curl "$DESK_URL/api/me" \
-  -H "Authorization: Bearer $DESK_ADMIN_ACCESS_TOKEN"
+    ```js
+    new Date().toISOString();
+    ```
 
-curl -i "$DESK_URL/api/settings" \
-  -H "Authorization: Bearer $DESK_ADMIN_ACCESS_TOKEN"
-```
+4. Раскрывается **PATCH /api/settings → Try it out**.
+5. В поле **if-match** вставляется ETag вместе с двойными кавычками, например `"7"`. Если поля ещё нет в установленном Swagger, для первого одиночного PATCH его можно пропустить: заголовок необязателен. Перед записью повторяется GET; параллельные правки без If-Match не защищены от устаревшего изменения того же поля.
+6. В тело вставляется JSON ниже. Два значения `TEAM_ID` заменяются UUID из `/api/me`, URL — адресом работающего туннеля, `CURRENT_ISO_TIME` — текущим временем из предыдущего шага.
 
-`teamId` из первого ответа — UUID. `demo` — другой идентификатор: `team_slug` пользователя в Identity. ETag из второго ответа используется в `If-Match`.
+    ```json
+    {
+        "teams": {
+            "TEAM_ID": {
+                "webhook": {
+                    "id": "TEAM_ID",
+                    "url": "https://random-name.trycloudflare.com/webhooks/service-desk",
+                    "enabled": true,
+                    "createdAt": "CURRENT_ISO_TIME"
+                }
+            }
+        }
+    }
+    ```
 
-Если записи `teams[teamId]` ещё нет, она создаётся целиком. Пример файла `webhook-settings.json` в проекте команды:
+7. Нажимается **Execute**. Ожидается `200`, новая `revision`, новый ETag и сохранённый URL в ответе.
+
+Пример содержит заполнители и не отправляется без замены. В `createdAt` не ставится будущее время: отправляются события, созданные начиная с времени подписки. Заявка для проверки создаётся после успешного PATCH, а не до него.
+
+### Если получатель уже существует
+
+Для смены адреса достаточно такого тела PATCH:
 
 ```json
 {
     "teams": {
-        "00000000-0000-4000-8000-000000000001": {
+        "TEAM_ID": {
             "webhook": {
-                "id": "00000000-0000-4000-8000-000000000001",
-                "url": "https://random-name.trycloudflare.com/webhooks/service-desk",
-                "enabled": true,
-                "createdAt": "2026-11-08T09:00:00.000Z"
+                "url": "https://new-name.trycloudflare.com/webhooks/service-desk",
+                "enabled": true
             }
         }
     }
 }
 ```
 
-Ключ и `id` заменяются на настоящий `teamId`, URL — на текущий адрес туннеля, время задаётся в ISO 8601. Если GET вернул `ETag: "7"`, запрос сохранения выглядит так:
+Перед запросом снова выполняется GET настроек и берётся свежий ETag. `id` и `createdAt` существующего получателя сохраняются. `version` и `revision` в PATCH не передаются.
 
-```sh
-curl -X PATCH "$DESK_URL/api/settings" \
-  -H "Authorization: Bearer $DESK_ADMIN_ACCESS_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -H 'If-Match: "7"' \
-  --data-binary @webhook-settings.json
-```
+При `409` другая запись уже изменила настройки: нужен новый GET, затем повтор только своей правки. URL применяется worker без перезапуска Service Desk. Ответ PATCH `200` подтверждает сохранение адреса; доставку подтверждает фактическое событие на backend.
 
-Ответ содержит весь JSON, новую `revision` и ETag. В тело PATCH `version` и `revision` не передаются.
+### GET, PATCH и PUT
 
-Для существующей записи достаточно изменить URL:
+| Метод                 | Для чего                                                            |
+| --------------------- | ------------------------------------------------------------------- |
+| GET `/api/settings`   | Получить весь документ и ETag                                       |
+| PATCH `/api/settings` | Изменить отдельные поля, например URL webhook                       |
+| PUT `/api/settings`   | Заменить весь документ, взятый из актуального GET, с его `revision` |
+
+Для URL обычно достаточно PATCH. Пустой объект в PATCH не удаляет запись, а неизвестные поля и `null` возвращают `400`. Остальные серверные параметры могут требовать перезапуска; ответ сообщает об этом в `X-Restart-Required`.
+
+На общем стенде может остаться включённый получатель от предыдущей проверки. Перед своим тестом его URL заменяется адресом своего работающего туннеля. Когда туннель выключается, получатель отключается PATCH с `"enabled": false`. При следующем запуске задаётся новый URL и `enabled=true`.
+
+## 5. Создание и чтение обращения
+
+### Поля формы
+
+В Swagger выполняется **Форма обращения → GET /rest/servicedeskapi/servicedesk/{deskId}/requesttype/{typeId}/field**:
+
+- `deskId`: `3`;
+- `typeId`: `10001`.
+
+Ответ `200` содержит обязательные поля и допустимые значения. Для этой формы обязательны название устройства, тип замены, причина и описание.
+
+### Создание
+
+Для проверки роли заявителя выполняется Logout и вход как `alice`. Затем **Обращения → POST /rest/servicedeskapi/request → Try it out**:
 
 ```json
 {
-    "teams": {
-        "00000000-0000-4000-8000-000000000001": {
-            "webhook": {
-                "url": "https://new-name.trycloudflare.com/webhooks/service-desk"
-            }
-        }
+    "serviceDeskId": "3",
+    "requestTypeId": "10001",
+    "requestFieldValues": {
+        "customfield_12900": "PC-1234",
+        "customfield_20001": { "id": "20002" },
+        "customfield_20002": { "id": "20101" },
+        "description": "Ноутбук не включается. Проверены зарядное устройство и розетка."
     }
 }
 ```
 
-При сохранении передаётся актуальный ETag. Адрес применяется на следующем цикле обработки без перезапуска. Полный формат и ограничения — в [настройках](../settings.md).
+Ожидается `201`. Из ответа сохраняется `issueKey`, например `HELP-123`. В следующих запросах пример `HELP-123` заменяется своим ключом.
 
-На службу приходится один получатель. Если несколько команд работают с общей `demo`, они меняют один URL. Для независимой работы нужны заранее подготовленные службы с разными `team_slug`/`teamId` либо отдельные экземпляры стенда. Новый OIDC client ID сам по себе такую изоляцию не создаёт.
+Новое обращение первоначально назначено `support-lead`. В локальном backend должно появиться подписанное событие `jira:issue_created`. Сам ответ `201` не доказывает доставку.
 
-## Подпись, сохранение и повторы
+Создать обращение также можно через [портал](https://desk.makar-star.space/). Он использует тот же API.
 
-В уведомлении приходят заголовки:
+### Карточка и список
+
+- GET `/rest/servicedeskapi/request/{key}` с ключом созданного обращения: `200`, карточка с текущим статусом и исполнителем.
+- GET `/rest/servicedeskapi/request` с `requestStatus=ALL_REQUESTS`, `start=0`, `limit=25`: `200`, массив `values` и сведения о следующей порции.
+
+Заявитель видит свои обращения, поддержка — обращения своей службы. Фильтры списка: `ALL_REQUESTS`, `OPEN_REQUESTS`, `CLOSED_REQUESTS`. Если есть `_links.next`, приложение запрашивает следующую порцию.
+
+## 6. Проверка webhook
+
+Webhook содержит заголовки:
 
 ```text
 Content-Type: application/json
-X-Training-Event-Id: <стабильный UUID события>
-X-Training-Signature: sha256=<64 шестнадцатеричных символа>
+X-Training-Event-Id: стабильный UUID события
+X-Training-Signature: sha256=64 шестнадцатеричных символа
 ```
 
-HMAC-SHA256 вычисляется по исходным байтам тела до JSON-парсера. Повторная сериализация может изменить тело и подпись не совпадёт.
+Создание отправляет `webhookEvent: "jira:issue_created"`, изменения — `webhookEvent: "jira:issue_updated"`. В `issue.key` находится ключ обращения. Актуальное состояние можно перечитать через GET карточки.
+
+Подпись проверяется по исходным байтам тела до JSON-парсера:
 
 ```ts
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -179,153 +218,148 @@ export function validSignature(rawBody: Buffer, signature: string, secret: strin
 }
 ```
 
-Выданный команде ключ используется как UTF-8 строка `secret`. `Buffer.from(secret, 'hex')` изменит ключ. Саму функцию нужно встроить в HTTP-обработчик выбранного фреймворка, который получает `rawBody` до разбора JSON.
+`secret` — отдельный ключ подписи, выданный владельцем для вашей службы. Он используется как UTF-8 строка, без `Buffer.from(secret, 'hex')`. Ключ не получается через Swagger, пароль пользователя, OIDC client secret или master-токен. Серверная `.env` студентам для этого не передаётся.
 
-Обработчик:
+Порядок обработки на backend:
 
-1. Получает исходное тело и заголовки, проверяет подпись и ID события. Неверная подпись — `401`/`403`.
-2. Сохраняет событие в своей БД с уникальным `event_id` и надёжно ставит его в обработку.
-3. Отвечает `200` или `204`. Повторный ID не создаёт дубликат задачи.
+1. Проверяются исходное тело, подпись и UUID из `X-Training-Event-Id`. Неверная подпись — `401` или `403`.
+2. Событие сохраняется в БД приложения с уникальным `event_id` и ставится в обработку.
+3. После надёжного сохранения возвращается `200` или `204`. Повтор с тем же ID подтверждается, но вторую задачу не создаёт.
 
-Повторы возможны, порядок доставки не гарантируется. Отправитель повторяет сетевые ошибки, `429` и `5xx`; другие `4xx` не означают «попробовать позже». При временной ошибке сохранения получатель отвечает `5xx`, а не подтверждает потерянные данные.
+При временной ошибке сохранения возвращается `5xx`. Service Desk повторяет сетевые ошибки, `429` и `5xx`. Повторы и другой порядок событий возможны, поэтому старое событие не должно перезаписывать свежую карточку. Текст внутренних заметок в webhook не передаётся.
 
-## События и актуальная карточка
+## 7. Назначение исполнителя, переписка и статусы
 
-Создание формирует `jira:issue_created`, изменение статуса, комментария или исполнителя — `jira:issue_updated`. Сокращённый пример:
+Для обработки выполняется вход как `support` либо `desk-admin`. В примере собственного приложения доступ «только администраторы» дополнительно требует `student-service:admin`; права Service Desk сами по себе этого доступа не дают.
 
-```json
-{
-    "webhookEvent": "jira:issue_created",
-    "issue": {
-        "id": "123",
-        "key": "HELP-123",
-        "fields": {
-            "summary": "Замена оборудования",
-            "status": { "id": "10005", "name": "Новая" },
-            "assignee": {
-                "name": "support-lead",
-                "displayName": "Руководитель поддержки"
-            }
-        }
-    }
-}
-```
+### Назначение
 
-Актуальная карточка читается по ключу: `GET /rest/servicedeskapi/request/HELP-123`. Старое событие не должно перезаписывать уже известный свежий статус; перечитывание карточки помогает сверить состояние.
-
-Webhook проверяется отдельным HMAC-ключом. Вызовы API требуют access token пользователя. Для автономной фоновой работы без вошедшего пользователя нужна отдельная серверная учётка и настройка прав Identity; публичный `student-service` их автоматически не создаёт. Внутренний клиент каталога `service-desk-directory` приложению команды не выдаётся.
-
-## Полный сценарий обработки
-
-Обработчик webhook доступен до создания обращения.
-
-1. Заявитель, например `alice`, входит в удалённый портал и отправляет форму нового обращения.
-2. Backend команды проверяет и сохраняет событие. Первоначальный исполнитель — руководитель поддержки.
-3. Сотрудник, например `support`, входит в приложение команды. Для внешнего API ему нужна `service-desk:support`; для собственного backend — `student-service:moderator`, если он проверяет эту роль.
-4. API возвращает доступных исполнителей:
-
-    ```http
-    GET /rest/api/2/user/assignable/search?issueKey=HELP-123&maxResults=50
-    Authorization: Bearer <ACCESS_TOKEN>
-    ```
-
-    ```json
-    [{ "name": "support", "key": "support", "displayName": "Сергей Петров", "active": true }]
-    ```
-
-5. Выбранный `name` передаётся в назначение:
-
-    ```http
-    PUT /rest/api/2/issue/HELP-123/assignee
-    Authorization: Bearer <ACCESS_TOKEN>
-    Content-Type: application/json
-    ```
+1. GET `/rest/api/2/user/assignable/search`: `issueKey=HELP-123`, `maxResults=50`.
+2. Из ответа выбирается `name` доступного сотрудника.
+3. PUT `/rest/api/2/issue/{key}/assignee`, `key=HELP-123`, тело:
 
     ```json
     { "name": "support" }
     ```
 
-    Успех — `204`. `{ "name": null }` снимает назначение; `-1` не поддерживается. Сервер заново проверяет доступность сотрудника в Keycloak. Предыдущий вход кандидата в портал не требуется.
+4. Ожидается `204`, затем GET карточки показывает нового исполнителя.
 
-6. Приложение перечитывает карточку и показывает сохранённого исполнителя. `assignee` в карточке/списке — локальное расширение CustomerRequestDTO: снимок логина и имени. Актуальная доступность для назначения определяется списком кандидатов.
+Для снятия используется `{ "name": null }`. Портал заявителя показывает исполнителя, но выбор реализует приложение команды. Список кандидатов учитывает актуальные роли и включённость пользователя; для назначения его предварительный вход в портал не требуется.
 
-Портал заявителя показывает исполнителя только для чтения. Выбор и правила распределения реализует сервис команды.
+### Комментарий
 
-## Статусы, переписка и закрытие
-
-Доступные переходы и обязательные поля возвращает:
-
-```http
-GET /rest/api/2/issue/HELP-123/transitions?expand=transitions.fields
-Authorization: Bearer <ACCESS_TOKEN>
-```
-
-Выбранный ID из ответа передаётся в POST:
-
-```http
-POST /rest/api/2/issue/HELP-123/transitions
-Authorization: Bearer <ACCESS_TOKEN>
-Content-Type: application/json
-```
+POST `/rest/servicedeskapi/request/{key}/comment`, `key=HELP-123`:
 
 ```json
-{ "transition": { "id": "10006" } }
+{ "body": "Обращение принято в работу.", "public": true }
 ```
 
-В текущем workflow `10006` переводит «Новую» в «Ожидает выполнения». Далее для перехода в «В работе» предлагается `10008`. Перед каждым действием клиент получает доступные переходы заново.
+Ожидается `201`. GET того же пути возвращает переписку. `public=false` — внутренняя заметка поддержки; заявитель её не видит и не может создавать.
 
-Переписка читается и дополняется по одному пути:
+### Рабочий статус
 
-```http
-GET /rest/servicedeskapi/request/HELP-123/comment?start=0&limit=25
-POST /rest/servicedeskapi/request/HELP-123/comment
+1. GET `/rest/api/2/issue/{key}/transitions`: `key=HELP-123`, `expand=transitions.fields`.
+2. Из ответа берётся ID разрешённого перехода и его обязательные поля.
+3. POST того же пути отправляет выбранный переход. Например, в текущем workflow переход из «Новая» в «Ожидает выполнения»:
+
+    ```json
+    { "transition": { "id": "10006" } }
+    ```
+
+4. Ожидается `204`, затем GET карточки показывает новый статус. Доступные переходы перед каждым следующим действием запрашиваются заново.
+
+### Закрытие заявителем
+
+1. Выполняется Logout, затем вход как `alice`, создавшая обращение.
+2. GET transitions возвращает доступное закрытие и обязательное решение.
+3. POST transitions в текущем workflow:
+
+    ```json
+    {
+        "transition": { "id": "10011" },
+        "fields": { "resolution": { "id": "10100" } }
+    }
+    ```
+
+4. Ожидается `204`. В карточке статус «Закрыта», исполнитель `null`. В webhook `jira:issue_updated` также приходит `issue.fields.assignee=null`.
+
+Повторное закрытие — `409`. Значения ID относятся к конфигурации этого стенда: в другом Jira workflow их нельзя считать постоянными.
+
+## 8. Запросы из localhost: proxy
+
+Для Vite используется `vite.config.ts`:
+
+```ts
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+    server: {
+        port: 4300,
+        strictPort: true,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:3000',
+                changeOrigin: true,
+            },
+            '/desk-api': {
+                target: 'https://desk.makar-star.space',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/desk-api/, ''),
+            },
+        },
+    },
+});
 ```
 
-```json
-{ "body": "Приняли обращение в работу.", "public": true }
-```
+После изменения конфигурации dev-сервер перезапускается. `/api/admin` попадает в backend команды. `/desk-api/api/me` попадает в Service Desk `/api/me`. Заголовок `Authorization` пересылается вместе с запросом.
 
-`public=false` создаёт внутреннюю заметку поддержки. Заявитель видит только публичные сообщения; внутренний текст в webhook не включается.
+Клиентский адаптер использует `keycloak` из второй инструкции:
 
-Заявитель закрывает своё открытое обращение кнопкой в портале либо через API. Его GET transitions в текущей конфигурации возвращает переход `10011` с обязательным решением `10100`:
+```ts
+import { keycloak } from './auth';
 
-```json
-{
-    "transition": { "id": "10011" },
-    "fields": { "resolution": { "id": "10100" } }
+const deskOrigin = 'https://desk.makar-star.space';
+
+export async function deskFetch(path: string, init: RequestInit = {}) {
+    const target = new URL(path, deskOrigin);
+    if (target.origin !== deskOrigin) throw new Error('Неизвестный адрес Service Desk');
+    if (!(target.pathname.startsWith('/rest/') || target.pathname.startsWith('/api/'))) {
+        throw new Error('Неизвестный путь API');
+    }
+    await keycloak.updateToken(30);
+    if (!keycloak.token) throw new Error('Вход не выполнен');
+
+    const headers = new Headers(init.headers);
+    headers.set('Authorization', `Bearer ${keycloak.token}`);
+    return fetch(`/desk-api${target.pathname}${target.search}`, { ...init, headers });
 }
+
+const response = await deskFetch('/api/me');
+const currentUser = await response.json();
 ```
 
-Успешный POST — `204`: статус становится «Закрыта», исполнитель снимается, `jira:issue_updated` содержит `issue.fields.assignee=null`. Повторное закрытие заявителем — `409`. Эти ID и право закрытия из любого открытого состояния относятся к локальной конфигурации стенда.
+Запросы выполняются через относительный `/desk-api/...`, включая абсолютные `_links.next` из ответов. Прямой `fetch` на удалённый домен обходит proxy и снова становится междоменным запросом браузера. Backend может обращаться к Service Desk напрямую: браузерные ограничения CORS на серверный HTTP-клиент не действуют.
 
-## Сверка списка
+## 9. Перенос на стенд команды
 
-```http
-GET /rest/servicedeskapi/request?requestStatus=OPEN_REQUESTS&start=0&limit=25
-Authorization: Bearer <ACCESS_TOKEN>
-```
+1. Приложение и backend опубликованы на своих HTTPS-адресах.
+2. Callback, origin и адрес выхода стенда добавлены в Keycloak по [инструкции входа](02-openid-connect.md).
+3. На стенде `/api` направлен на backend команды, `/desk-api` — на Service Desk. Это делает reverse proxy или backend; dev-proxy Vite после сборки не работает.
+4. PATCH меняет URL webhook на постоянный HTTPS-адрес команды.
+5. Повторяется создание обращения, получение события, назначение, комментарий, статус и закрытие.
 
-Фильтры: `ALL_REQUESTS`, `OPEN_REQUESTS`, `CLOSED_REQUESTS`. Поддержка видит обращения своей службы, заявитель — свои. Следующая порция находится в `_links.next` и при браузерном запросе проходит через proxy.
+При ошибке проверяется:
 
-Список позволяет сверить состояние, но не подтверждает доставку webhook. Полный сценарий включает получение и сохранение подписанного события.
+| Ответ или симптом          | Проверка                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------- |
+| `401` API                  | Передан access token, а не ID token; срок, issuer и audience `service-desk`                    |
+| `403` API                  | Роли клиента `service-desk`, `team_slug=demo`; настройки требуют `admin`                       |
+| `401` собственного backend | В токене есть audience `student-service`, подпись и срок корректны                             |
+| `403` собственного backend | Есть роль `student-service:admin`                                                              |
+| `503` создания             | Есть ровно один активный руководитель службы; доступен каталог Identity                        |
+| `409` настроек             | Повторён GET и взят актуальный ETag                                                            |
+| CORS                       | Запрос и ссылки следующей порции проходят через `/desk-api`                                    |
+| Webhook не пришёл          | Туннель и backend работают, путь правильный, получатель включён, заявка создана после подписки |
+| Подпись неверна            | Используются исходные байты и выданный ключ службы как UTF-8 строка                            |
 
-## Перенос приложения на стенд команды
-
-1. Приложение и обработчик webhook развёрнуты на HTTPS-адресах.
-2. Callback, origin и выход зарегистрированы в Keycloak по второй инструкции.
-3. Reverse proxy или backend пересылает запросы Service Desk; dev-proxy Vite автоматически не переносится.
-4. PATCH меняет URL существующего получателя на постоянный адрес.
-5. Повторены создание, назначение, статус, сообщение и закрытие; проверены подпись, повтор события и права разных учёток.
-
-| Проблема                 | Что проверить                                                              |
-| ------------------------ | -------------------------------------------------------------------------- |
-| CORS в браузере          | Запрос, включая `_links.next`, проходит через локальный proxy              |
-| API `401`                | Access token, срок, issuer и audience `service-desk`; ID token не подходит |
-| API `403`                | Роли клиента `service-desk`, `team_slug`; для настроек нужна `admin`       |
-| Карточка `404`           | Ключ и принадлежность доступной службе/заявителю                           |
-| Нет webhook на localhost | Туннель, текущий hostname, путь POST и включённого получателя              |
-| Неверная подпись         | Исходные байты, ключ как UTF-8 строку, заголовок `sha256=...`              |
-| Создание `503`           | Единственного активного руководителя и каталог Identity                    |
-| PATCH `409`              | Актуальный ETag после повторного GET                                       |
-
-Справка: [контракт стенда](../api-compatibility.md), [JSON настроек](../settings.md), [Vite proxy](https://vite.dev/config/server-options.html#server-proxy), [Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
+Контракт стенда: [API](../api-compatibility.md), [JSON настроек](../settings.md). Официальная справка: [Vite proxy](https://vite.dev/config/server-options#server-proxy), [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).

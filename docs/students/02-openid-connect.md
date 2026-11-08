@@ -1,88 +1,96 @@
-# 2. Вход через OpenID Connect
+# 2. Вход в приложение через OpenID Connect
 
-Приложение команды открывается на localhost, перенаправляет пользователя на форму Artsofte в удалённом Keycloak и получает access token. С этим токеном оно обращается к своему backend и Service Desk.
+После настройки приложение команды открывает готовую форму Artsofte, получает access token и передаёт его своему backend и Service Desk. Пример ниже рассчитан на frontend `http://localhost:4300` и backend `http://localhost:3000`. Подходит другой стек, если он поддерживает Authorization Code + PKCE S256.
 
-Подходит любой стек с поддержкой Authorization Code + PKCE S256. Ниже — пример браузерного SPA на TypeScript с `keycloak-js`. Пользователи и роли готовятся по [первой инструкции](01-keycloak-and-roles.md).
+До подключения подготовлены пользователь, роль `student-service:admin` и audience `student-service` из [первой инструкции](01-keycloak-and-roles.md).
 
-## Регистрация локального приложения и стенда
+## 1. Адреса входа
 
-В **Clients → student-service** задаются:
+| Параметр приложения     | Значение                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| Адрес Identity          | `https://auth.makar-star.space`                                                  |
+| Realm                   | `training`                                                                       |
+| Client ID               | `student-service`                                                                |
+| Issuer для проверки JWT | `https://auth.makar-star.space/realms/training`                                  |
+| Discovery               | `https://auth.makar-star.space/realms/training/.well-known/openid-configuration` |
 
-| Параметр                   | Значение для SPA      |
-| -------------------------- | --------------------- |
-| Client type / Protocol     | OpenID Connect        |
-| Client authentication      | Off: публичный клиент |
-| Standard flow              | On                    |
-| Implicit flow              | Off                   |
-| Direct access grants       | Off                   |
-| PKCE Code Challenge Method | S256                  |
+Пароль вводится на странице Keycloak. Приложение команды не создаёт свою форму для сбора корпоративного пароля.
 
-Пример адресов для локального frontend на порту `4300` и стенда команды:
+## 2. Регистрация localhost в Keycloak
 
-| Настройка                       | Локально                              | Стенд                                    |
-| ------------------------------- | ------------------------------------- | ---------------------------------------- |
-| Valid Redirect URIs             | `http://localhost:4300/auth/callback` | `https://team1.example.ru/auth/callback` |
-| Web Origins                     | `http://localhost:4300`               | `https://team1.example.ru`               |
-| Valid Post Logout Redirect URIs | `http://localhost:4300/`              | `https://team1.example.ru/`              |
+1. Открывается [консоль администратора](https://auth.makar-star.space/admin/master/console/#/training/clients), выполняется вход как `administrator`.
+2. В realm **training** открывается **Clients → student-service → Settings**.
+3. Проверяются параметры:
 
-Адреса задаются точно, включая порт и путь. `localhost` и `127.0.0.1` — разные origins. Для другого порта требуется отдельная запись.
+| Поле                            | Значение                              |
+| ------------------------------- | ------------------------------------- |
+| Client authentication           | Off — public client                   |
+| Standard flow                   | On                                    |
+| Implicit flow                   | Off                                   |
+| Direct access grants            | Off                                   |
+| Valid Redirect URIs             | `http://localhost:4300/auth/callback` |
+| Web Origins                     | `http://localhost:4300`               |
+| Valid Post Logout Redirect URIs | `http://localhost:4300/`              |
 
-Для параллельных проектов можно создать клиентов по образцу `student-service`. При копировании сохраняются нужные mapper имени, `team_slug`, ролей и audience из первой инструкции. Изменение ENV не обновляет существующего клиента: адреса сохраняются в консоли Keycloak.
+4. В **Advanced** проверяется **Proof Key for Code Exchange Code Challenge Method = S256**.
+5. Изменения сохраняются.
 
-## Как открывается готовая форма входа
+Порт и путь должны совпадать с приложением. `localhost:4300` и `127.0.0.1:4300` — разные адреса. В Redirect URIs не нужен общий `*`.
 
-Приложение не собирает пароль. Его кнопка «Войти» запускает OIDC-клиент, который открывает готовую страницу Artsofte на домене Keycloak. После входа браузер возвращается на `/auth/callback`, а SDK обменивает одноразовый код на токены.
+В текущей конфигурации localhost на порту `4300` уже зарегистрирован. При выборе другого порта команда добавляет точные адреса для него. Если несколько проектов используют один клиент, чужие адреса из списка сохраняются; для независимых настроек создаётся отдельный клиент по образцу `student-service` с теми же нужными mapper и собственным client ID.
 
-```text
-Приложение команды → форма Keycloak → callback приложения → защищённый экран
-```
+## 3. Подключение готовой формы входа
 
-Для возврата браузера на localhost туннель не нужен. Если сеанс Keycloak уже открыт, используется SSO без повторного пароля.
-
-## Браузерный пример на TypeScript
-
-Установка в собственном проекте:
+В своём frontend-проекте устанавливается SDK:
 
 ```sh
 pnpm add keycloak-js
 ```
 
-Инициализация выполняется до запуска роутера:
+Создаётся модуль `auth.ts`:
 
 ```ts
 import Keycloak from 'keycloak-js';
 
 export const keycloak = new Keycloak({
-    url: 'https://auth.example.ru',
+    url: 'https://auth.makar-star.space',
     realm: 'training',
     clientId: 'student-service',
 });
 
-const authenticated = await keycloak.init({
-    onLoad: 'login-required',
-    flow: 'standard',
-    pkceMethod: 'S256',
-    checkLoginIframe: false,
-    scope: 'openid profile email',
-    redirectUri: `${window.location.origin}/auth/callback`,
-});
+export async function initializeAuth() {
+    const authenticated = await keycloak.init({
+        onLoad: 'login-required',
+        flow: 'standard',
+        pkceMethod: 'S256',
+        checkLoginIframe: false,
+        scope: 'openid profile email',
+        redirectUri: `${window.location.origin}/auth/callback`,
+    });
+    if (!authenticated) throw new Error('Вход не завершён');
 
-if (!authenticated) throw new Error('Вход не завершён');
-
-if (window.location.pathname === '/auth/callback') {
-    window.history.replaceState(window.history.state, '', '/');
+    if (window.location.pathname === '/auth/callback') {
+        window.history.replaceState(window.history.state, '', '/');
+    }
 }
 
-// Здесь запускается роутер приложения.
+export async function logout() {
+    await keycloak.logout({ redirectUri: `${window.location.origin}/` });
+}
 ```
 
-SDK обрабатывает callback и проверяет OIDC state/nonce. В этом примере после входа открывается главная страница. Если требуется возврат в карточку, до входа сохраняется только проверенный внутренний путь. Токены, код и параметры OAuth в такое хранилище не записываются.
+`initializeAuth()` вызывается один раз до запуска роутера и запросов защищённых данных. На пути `/auth/callback` web-сервер отдаёт тот же frontend, например через fallback на `index.html`. Отдельный экран с ручным обменом кода не нужен: callback обрабатывает SDK.
 
-При прямом открытии `/auth/callback` web-сервер приложения должен отдавать SPA, например через fallback на `index.html`.
+Ожидаемый сценарий:
 
-### Вариант с кнопкой «Войти»
+1. В браузере открывается `http://localhost:4300`.
+2. SDK переводит браузер на `auth.makar-star.space`.
+3. Пользователь входит под своей учёткой realm `training`, например `desk-admin`.
+4. Браузер возвращается на localhost, SDK обменивает код на токены и открывает приложение.
 
-Для публичного экрана в `init` используется `onLoad: 'check-sso'`. Проверка `if (!authenticated) throw` из примера убирается: при `false` приложение показывает кнопку, при `true` — защищённый экран.
+Для этого возврата туннель не нужен: к localhost обращается браузер самого пользователя. Токены остаются в памяти SDK. Пример не сохраняет их в localStorage и не содержит client secret.
+
+Если сначала нужен публичный экран с кнопкой «Войти», вместо `login-required` используется `check-sso`; отсутствие входа не считается ошибкой. Кнопка вызывает:
 
 ```ts
 await keycloak.login({
@@ -90,122 +98,112 @@ await keycloak.login({
 });
 ```
 
-Выход:
+## 4. Отправка токена своему backend
+
+Локальный proxy из [третьей инструкции](03-service-desk.md) направит `/api` на backend `localhost:3000`.
 
 ```ts
-await keycloak.logout({
-    redirectUri: `${window.location.origin}/`,
-});
-```
+import { keycloak } from './auth';
 
-Завершающий `/` совпадает с зарегистрированным адресом выхода. Logout завершает общую сессию Identity, включая другие подключённые приложения.
-
-## Запрос к собственному backend
-
-Access и refresh tokens остаются в памяти SDK. Перед запросом SDK обновляет access token при необходимости:
-
-```ts
-export async function authorizedFetch(path: string, init: RequestInit = {}) {
-    const target = new URL(path, window.location.origin);
-    if (target.origin !== window.location.origin || !target.pathname.startsWith('/api/')) {
+export async function ownApi(path: string) {
+    const url = new URL(path, window.location.origin);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) {
         throw new Error('Неизвестный адрес собственного API');
     }
     await keycloak.updateToken(30);
-    if (!keycloak.token) throw new Error('Сеанс завершён');
+    if (!keycloak.token) throw new Error('Вход не выполнен');
 
-    const headers = new Headers(init.headers);
-    headers.set('Authorization', `Bearer ${keycloak.token}`);
-    return fetch(target, { ...init, headers });
+    return fetch(url, {
+        headers: { Authorization: `Bearer ${keycloak.token}` },
+    });
 }
 
-const response = await authorizedFetch('/api/profile');
+const response = await ownApi('/api/admin');
 ```
 
-`/api/profile` здесь обозначает маршрут backend команды. В Service Desk такого пути нет. Для запросов к Service Desk через proxy используется адаптер из [третьей инструкции](03-service-desk.md).
+`/api/admin` — маршрут приложения команды. В Service Desk такого пути нет. Для API передаётся access token; ID token предназначен для клиента входа.
 
-## Проверка подписи и роли на backend
+## 5. Проверка «вход только администраторам» на backend
 
-Backend проверяет токен до выполнения защищённого действия. Скрытие кнопок в браузере служит только оформлением интерфейса.
+Keycloak подтверждает личность и выдаёт роли. Решение, разрешено ли действие, принимает backend команды. Проверка должна выполняться на каждом защищённом маршруте.
 
-После настройки собственной audience и ролей по первой инструкции пример Node.js выглядит так:
+Ниже — минимальный пример Node.js. Он возвращает `200` только для роли **student-service → admin**, `401` без подходящего токена и `403` при отсутствии роли.
 
 ```sh
-pnpm add jose
+pnpm add fastify jose
 ```
 
-```ts
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
+Файл `server.mjs`:
 
-const issuer = 'https://auth.example.ru/realms/training';
+```js
+import Fastify from 'fastify';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
+const app = Fastify();
+const issuer = 'https://auth.makar-star.space/realms/training';
 const jwks = createRemoteJWKSet(new URL(`${issuer}/protocol/openid-connect/certs`));
 
-export async function authenticate(authorization: string | undefined) {
-    const token = /^Bearer (\S+)$/.exec(authorization ?? '')?.[1];
-    if (!token) throw new Error('UNAUTHORIZED');
+app.get('/api/admin', async (request, reply) => {
+    const token = /^Bearer (\S+)$/.exec(request.headers.authorization ?? '')?.[1];
+    if (!token) return reply.code(401).send({ error: 'Войдите в приложение' });
 
-    const { payload } = await jwtVerify(token, jwks, {
-        issuer,
-        audience: 'student-service',
-        algorithms: ['RS256'],
-        requiredClaims: ['sub', 'iat', 'exp'],
-    });
-    if (payload.typ !== 'Bearer') throw new Error('UNAUTHORIZED');
-    return payload;
-}
-
-function hasClientRole(payload: JWTPayload, clientId: string, role: string): boolean {
-    const resources = payload.resource_access;
-    if (!resources || typeof resources !== 'object' || Array.isArray(resources)) return false;
-    const client = (resources as Record<string, unknown>)[clientId];
-    if (!client || typeof client !== 'object' || Array.isArray(client)) return false;
-    const roles = (client as Record<string, unknown>).roles;
-    return Array.isArray(roles) && roles.every((value) => typeof value === 'string') && roles.includes(role);
-}
-
-export async function requireModerator(authorization: string | undefined) {
-    let payload: JWTPayload;
+    let payload;
     try {
-        payload = await authenticate(authorization);
+        ({ payload } = await jwtVerify(token, jwks, {
+            issuer,
+            audience: 'student-service',
+            algorithms: ['RS256'],
+            requiredClaims: ['sub', 'iat', 'exp'],
+        }));
+        if (payload.typ !== 'Bearer') throw new Error('Неверный тип токена');
     } catch {
-        throw Object.assign(new Error('Войдите в приложение'), { statusCode: 401 });
+        return reply.code(401).send({ error: 'Не удалось подтвердить вход' });
     }
-    if (!hasClientRole(payload, 'student-service', 'moderator')) {
-        throw Object.assign(new Error('Нет прав на обработку обращений'), { statusCode: 403 });
+
+    const roles = payload.resource_access?.['student-service']?.roles;
+    if (!Array.isArray(roles) || !roles.includes('admin')) {
+        return reply.code(403).send({ error: 'Нужна роль администратора приложения' });
     }
-    return payload;
-}
+    return { username: payload.preferred_username, access: 'admin' };
+});
+
+await app.listen({ host: '127.0.0.1', port: 3000 });
 ```
 
-Адрес JWKS берётся из доверенной конфигурации Identity/Discovery, а не из непроверенного JWT. HTTP-обработчик выбранного фреймворка возвращает `401` при ошибке проверки токена и `403` при отсутствии роли. Пример не создаёт HTTP-маршрут приложения.
+Запуск:
 
-Если сервис разделяет данные по службам, backend связывает проверенный `team_slug` с разрешённым разделом. Значение из тела запроса права не расширяет.
+```sh
+node server.mjs
+```
 
-API Service Desk ожидает audience `service-desk`; backend команды в примере — `student-service`. Mapper может включить оба значения в один access token. Для API передаётся access token, а не ID token.
+Backend получает открытые ключи с доверенного адреса JWKS и проверяет подпись, issuer, audience и срок токена. Декодирование JWT без `jwtVerify` эти проверки не выполняет. Роль проверяется у своего клиента `student-service`, а не по совпадению строки `admin` в любом месте токена.
 
-## Вариант с серверным входом
+В рабочем приложении эта проверка выносится в общий middleware/preHandler и подключается ко всем административным маршрутам. Браузер может скрыть недоступные разделы для удобства, но серверная проверка всё равно обязательна.
 
-Если callback и сессию обрабатывает backend, вместо SPA-клиента создаётся отдельный confidential client, например `student-service-web`:
+## 6. Проверка localhost
 
-| Настройка                            | Значение                                                                                             |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| Client authentication                | On                                                                                                   |
-| Standard flow                        | On                                                                                                   |
-| Direct access grants / Implicit flow | Off                                                                                                  |
-| Valid Redirect URIs                  | Точный callback backend: например, `http://localhost:3000/auth/callback` и его HTTPS-адрес на стенде |
-| Mapper                               | Нужные роли и audience Service Desk и собственного сервиса                                           |
-| Client secret                        | Из Credentials клиента; только в серверной конфигурации                                              |
+| Действие                                                                          | Ожидаемый результат                                                     |
+| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Запрос `/api/admin` без Authorization                                             | `401`                                                                   |
+| Вход `desk-admin`, которому назначена `student-service:admin`, затем `/api/admin` | `200`                                                                   |
+| Вход `alice` или `support` без этой роли, затем `/api/admin`                      | `403`                                                                   |
+| Кнопка выхода                                                                     | Сессия Identity завершается; новый защищённый вход снова запускает OIDC |
+| Просроченный или изменённый токен                                                 | `401`                                                                   |
 
-OIDC-библиотека backend получает endpoints из `https://auth.example.ru/realms/training/.well-known/openid-configuration`. Она создаёт state/nonce, выполняет Code flow и PKCE при поддержке библиотеки, обменивает код с серверным secret и создаёт защищённую сессию приложения.
+После изменения ролей выполняется выход и повторный вход, чтобы получить новый токен. Logout завершает общую сессию Keycloak; другие приложения этой сессии тоже потребуют новый вход. Уже выданный access JWT может оставаться действительным до своего срока истечения, если API не использует отдельную проверку отзыва.
 
-Браузер получает сессионную cookie; токены хранятся на backend. Оттуда выполняются запросы к Service Desk с access token пользователя. Такой вариант настраивается библиотекой выбранного стека и не требует `keycloak-js`.
+## 7. Подключение своего стенда
 
-## Перенос с localhost на стенд
+Когда приложение команды опубликовано, в **Clients → student-service → Settings** добавляются его точные адреса. Например, для `https://team1.example.ru`:
 
-1. В Keycloak зарегистрированы HTTPS callback, origin и адрес выхода стенда.
-2. В приложении указаны прежний публичный адрес Identity и нужный `clientId`.
-3. На `/auth/callback` web-сервер отдаёт приложение.
-4. После повторного входа проверены `401` без токена и `403` без нужной роли.
+| Поле                            | Значение                                 |
+| ------------------------------- | ---------------------------------------- |
+| Valid Redirect URIs             | `https://team1.example.ru/auth/callback` |
+| Web Origins                     | `https://team1.example.ru`               |
+| Valid Post Logout Redirect URIs | `https://team1.example.ru/`              |
 
-Далее: [proxy, webhook и API Service Desk](03-service-desk.md).
+Локальные адреса можно оставить для разработки. В коде остаются прежние `url`, `realm` и `clientId`; callback из примера вычисляется из адреса frontend. На стенде `/auth/callback` должен отдавать приложение, а `/api` — вести на backend команды. Если frontend и backend имеют разные домены, команда дополнительно настраивает свой CORS либо общий reverse proxy.
 
-Справка: [JavaScript-адаптер Keycloak](https://www.keycloak.org/securing-apps/javascript-adapter), [OIDC endpoints](https://www.keycloak.org/securing-apps/oidc-layers), [jose](https://github.com/panva/jose).
+Для серверного приложения с cookie-сессией вместо SPA создаётся отдельный confidential client: **Client authentication = On**, точный callback backend и secret только на сервере. OIDC-библиотека выбранного стека обрабатывает Code flow и сессию. Этот вариант не требует `keycloak-js`; менять способ входа на передачу логина и пароля в API не нужно.
+
+Официальная справка: [JavaScript-адаптер Keycloak](https://www.keycloak.org/securing-apps/javascript-adapter), [пользователи и клиентские scopes](https://www.keycloak.org/docs/latest/server_admin/), [jose](https://github.com/panva/jose).

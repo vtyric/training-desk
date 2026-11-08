@@ -122,6 +122,14 @@ test('All real API routes have groups and role guidance; static UI routes stay o
         assert.equal(spec.paths['/api/config'], undefined);
         assert.ok(spec.paths['/rest/servicedeskapi/request'].post.responses['201']);
         assert.ok(spec.paths['/api/settings'].put.responses['200']);
+        for (const method of ['put', 'patch']) {
+            const header = spec.paths['/api/settings'][method].parameters.find(
+                (parameter: { name: string; in: string }) =>
+                    parameter.in === 'header' && parameter.name.toLowerCase() === 'if-match'
+            );
+            assert.ok(header, `${method} settings exposes If-Match in Swagger`);
+            assert.equal(header.required, false);
+        }
         assert.deepEqual(
             Object.keys(spec.paths['/api/settings'])
                 .filter((key) => methods.has(key))

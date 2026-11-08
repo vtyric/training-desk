@@ -70,13 +70,22 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 export DOCKER_CONFIG="$registry_config"
 docker login ghcr.io --username '${env.GHCR_USER}' --password-stdin
+previous_sha=$(basename "$(readlink "$base/current" 2>/dev/null || true)")
+if [ "$previous_sha" = '${env.GITHUB_SHA}' ]; then
+    previous_sha=$(basename "$(readlink "$base/previous" 2>/dev/null || true)")
+fi
+if ! printf '%s\\n' "$previous_sha" | grep -Eq '^[a-f0-9]{40}$'; then previous_sha=; fi
 release="$base/releases/${env.GITHUB_SHA}"
 mkdir -p "$release"
 tar -xzf '${incoming}' --no-same-owner -C "$release"
 ln -sfn ../../.env "$release/.env"
 cd "$release"
 ./deploy.sh
+if [ -n "$previous_sha" ]; then ln -sfn "releases/$previous_sha" "$base/previous"; fi
 ln -sfn 'releases/${env.GITHUB_SHA}' "$base/current"
+previous_tag=
+if [ -n "$previous_sha" ]; then previous_tag="sha-$previous_sha"; fi
+./cleanup-images.sh ghcr.io/vtyric/training-desk 'sha-${env.GITHUB_SHA}' "$previous_tag"
 `;
     const quote = (value) => `'${value.replaceAll("'", "'\\''")}'`;
     execFileSync('ssh', [...ssh, `sh -c ${quote(script)}`], {

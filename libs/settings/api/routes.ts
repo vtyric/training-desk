@@ -3,6 +3,11 @@ import type { SettingsLogic } from '../logic/settings-logic';
 import { SettingsError, type SettingsDocument } from '../types';
 import { settingsDocumentSchema, settingsPatchSchema } from './settings-schema';
 
+const revisionHeaders = {
+    type: 'object',
+    properties: { 'if-match': { type: 'string' } },
+};
+
 function expectedRevision(header: string | string[] | undefined): number | undefined {
     if (header === undefined) return undefined;
     if (typeof header !== 'string' || !/^"\d+"$/.test(header))
@@ -35,7 +40,11 @@ export async function registerSettingsRoutes(
         '/api/settings',
         {
             onRequest: authenticateAdmin,
-            schema: { body: settingsDocumentSchema, response: { 200: settingsDocumentSchema } },
+            schema: {
+                headers: revisionHeaders,
+                body: settingsDocumentSchema,
+                response: { 200: settingsDocumentSchema },
+            },
         },
         async (request, reply) => {
             return send(await logic.put(request.body, expectedRevision(request.headers['if-match'])), reply);
@@ -45,7 +54,7 @@ export async function registerSettingsRoutes(
         '/api/settings',
         {
             onRequest: authenticateAdmin,
-            schema: { body: settingsPatchSchema, response: { 200: settingsDocumentSchema } },
+            schema: { headers: revisionHeaders, body: settingsPatchSchema, response: { 200: settingsDocumentSchema } },
         },
         async (request, reply) =>
             send(await logic.patch(request.body, expectedRevision(request.headers['if-match'])), reply)

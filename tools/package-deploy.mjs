@@ -15,15 +15,30 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = join(root, 'dist/deploy');
 const temporary = await mkdtemp(join(tmpdir(), 'training-desk-deploy-'));
 try {
-    for (const file of ['compose.yaml', 'deploy.sh', '.env.example'])
+    for (const file of ['compose.yaml', 'deploy.sh', 'cleanup-images.sh', '.env.example'])
         await copyFile(join(root, 'infra/deploy', file), join(temporary, file));
     await chmod(join(temporary, 'deploy.sh'), 0o755);
+    await chmod(join(temporary, 'cleanup-images.sh'), 0o755);
     await writeFile(join(temporary, 'images.env'), `IMAGE_PREFIX=${values.prefix}\nIMAGE_TAG=${values.tag}\n`);
     await mkdir(output, { recursive: true });
     const archive = join(output, 'training-desk-deploy.tar.gz');
-    execFileSync('tar', ['-czf', archive, '-C', temporary, 'compose.yaml', 'deploy.sh', '.env.example', 'images.env'], {
-        env: { ...process.env, COPYFILE_DISABLE: '1' },
-    });
+    execFileSync(
+        'tar',
+        [
+            '-czf',
+            archive,
+            '-C',
+            temporary,
+            'compose.yaml',
+            'deploy.sh',
+            'cleanup-images.sh',
+            '.env.example',
+            'images.env',
+        ],
+        {
+            env: { ...process.env, COPYFILE_DISABLE: '1' },
+        }
+    );
     console.log(`Deployment bundle: ${archive}`);
 } finally {
     await rm(temporary, { recursive: true, force: true });
