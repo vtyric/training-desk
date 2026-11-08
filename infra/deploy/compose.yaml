@@ -7,7 +7,7 @@ x-environment: &environment
     TEAM_API_TOKEN: ${TEAM_API_TOKEN:?Generate .env}
     CUSTOMER_API_TOKEN: ${CUSTOMER_API_TOKEN:?Generate .env}
     OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-http://localhost:8081/realms/training}
-    OIDC_INTERNAL_ISSUER_URL: http://identity:8080/realms/training
+    OIDC_INTERNAL_ISSUER_URL: ${OIDC_ISSUER_URL:?Set HTTPS issuer in .env}
     IDENTITY_DIRECTORY_CLIENT_SECRET: ${IDENTITY_DIRECTORY_CLIENT_SECRET:?Run node tools/setup-env.mjs --extend}
     IDENTITY_PUBLIC_URL: ${IDENTITY_PUBLIC_URL:-http://localhost:8081}
     WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?Generate .env}
