@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createHmac } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import staticFiles from '@fastify/static';
@@ -70,7 +70,12 @@ export async function buildRuntimeApp(env: NodeJS.ProcessEnv = process.env, logg
         assigneeDirectory: directory,
         configureApp: async (instance) => {
             db = instance.trainingDb;
-            await registerSwagger(instance, config.service.name, required(env, config.identity.issuerUrlEnv));
+            await registerSwagger(
+                instance,
+                config.service.name,
+                required(env, config.identity.issuerUrlEnv),
+                readFileSync(resolve(env['STATIC_DIR'] ?? 'libs/theme/assets', 'brand/favicon.svg'))
+            );
         },
         registerFeatures: async (instance, _authenticate, authenticateAdmin) => {
             await registerSettingsRoutes(instance, new SettingsLogic(settings, validateWebhookUrl), authenticateAdmin);

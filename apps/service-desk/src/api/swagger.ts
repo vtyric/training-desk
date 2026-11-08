@@ -35,7 +35,7 @@ export function identityLogoutPlugin(system: SwaggerAuthSystem) {
     };
 }
 
-export async function registerSwagger(app: FastifyInstance, name: string, issuerUrl: string) {
+export async function registerSwagger(app: FastifyInstance, name: string, issuerUrl: string, favicon?: Buffer) {
     const issuer = issuerUrl.replace(/\/$/, '');
     await app.register(swagger, {
         transform: documentSwaggerRoute,
@@ -67,6 +67,21 @@ export async function registerSwagger(app: FastifyInstance, name: string, issuer
     });
     await app.register(swaggerUi, {
         routePrefix: '/docs',
+        ...(favicon
+            ? {
+                  theme: {
+                      favicon: [
+                          {
+                              filename: 'favicon.svg',
+                              rel: 'icon',
+                              type: 'image/svg+xml',
+                              sizes: 'any',
+                              content: favicon,
+                          },
+                      ],
+                  },
+              }
+            : {}),
         uiConfig: {
             persistAuthorization: false,
             docExpansion: 'none',
