@@ -17,7 +17,13 @@ export async function sendWebhook(
             {
                 method: 'POST',
                 timeout: timeoutMs,
-                lookup: (_hostname, _options, callback) => callback(null, target.address, target.family),
+                lookup: (_hostname, options, callback) => {
+                    if (options && typeof options === 'object' && 'all' in options && options.all) {
+                        callback(null, [{ address: target.address, family: target.family }]);
+                        return;
+                    }
+                    callback(null, target.address, target.family);
+                },
                 headers: {
                     'content-type': 'application/json',
                     'content-length': Buffer.byteLength(payload),
