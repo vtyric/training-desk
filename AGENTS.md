@@ -4,7 +4,7 @@
 
 Здесь два самостоятельных приложения: `identity` (Keycloak + writable LDAP federation + схема `identity` в общей БД) и `service-desk` (тестовый Jira-совместимый API и встроенный UI). Приложение модерации студентов находится в отдельном репозитории. Прежние отдельные Nx back/front заменены `apps/service-desk/src` и `apps/service-desk/ui`; общая тема — `libs/theme`.
 
-Для русских документов открывай `redaktura`; для подписей, сообщений, ошибок и экранов — `ux-copy`. После изменения контрактов сверяйся также с доменным skill ниже.
+Для русских документов используй личный скилл `$redaktura`, для интерфейса — `$ux-copy`, согласно глобальному `~/.codex/AGENTS.md`. На другой машине личные скиллы устанавливаются из [N1arko/redaktura-skills](https://github.com/N1arko/redaktura-skills), папки `redaktura` и `ux-copy`. После изменения контрактов сверяйся также с доменным skill ниже.
 
 Перед изменениями прочитай [обзор архитектуры](docs/architecture/README.md), затем **открой применимый SKILL.md**, не ограничиваясь описанием. Если discovery не показал навык, используй прямой путь ниже. Противоречие документа коду отметь явно. Инструкции и skills этого checkout — актуальный источник; не используй их старые копии из другого каталога проекта или глобального каталога skills.
 
@@ -15,8 +15,6 @@
 | Пути/DTO/валидация/пагинация Jira API                                        | Дополнительно [training-desk-jira-contract](.agents/skills/training-desk-jira-contract/SKILL.md) |
 | Keycloak, realm/clients, users/passwords/roles, LDAP federation и тема входа | [training-desk-identity](.agents/skills/training-desk-identity/SKILL.md)                         |
 | Тестовый UI Service Desk, Angular, SCSS/theme/assets                         | [training-desk-ui](.agents/skills/training-desk-ui/SKILL.md)                                     |
-| Редактура русской документации и текстов интерфейса                          | [redaktura](.agents/skills/redaktura/SKILL.md) и [ux-copy](.agents/skills/ux-copy/SKILL.md)      |
-| Русская документация и тексты интерфейса                                     | [redaktura](.agents/skills/redaktura/SKILL.md) и [ux-copy](.agents/skills/ux-copy/SKILL.md)      |
 | Запрошенный review, аудит архитектуры или готовности                         | [training-desk-review](.agents/skills/training-desk-review/SKILL.md)                             |
 
 Читай только документы подходящей области. Не загружай весь OpenAPI для небольшой правки. UI/тема Keycloak требует identity skill, а изменение общей SCSS-библиотеки дополнительно ui skill.

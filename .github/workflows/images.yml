@@ -1,0 +1,114 @@
+name: Publish Docker images
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: images-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    checks:
+        if: github.ref == 'refs/heads/main'
+        uses: ./.github/workflows/ci.yml
+
+    images:
+        needs: checks
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+        permissions:
+            contents: read
+            packages: write
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - image: service-desk
+                      dockerfile: apps/service-desk/Dockerfile
+                      target: runtime
+                    - image: migrate
+                      dockerfile: apps/service-desk/Dockerfile
+                      target: migrate
+                    - image: identity
+                      dockerfile: apps/identity/Dockerfile
+                      target: runtime
+                    - image: ldap
+                      dockerfile: apps/identity/ldap/Dockerfile
+                      target: ''
+                    - image: provision
+                      dockerfile: apps/identity/Dockerfile
+                      target: provision
+                    - image: postgres
+                      dockerfile: infra/postgres/Dockerfile
+                      target: ''
+        steps:
+            - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+            - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+            - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+            - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+              with:
+                  context: .
+                  file: ${{ matrix.dockerfile }}
+                  target: ${{ matrix.target }}
+                  platforms: linux/amd64
+                  push: true
+                  tags: |
+                      ghcr.io/vtyric/training-desk-${{ matrix.image }}:sha-${{ github.sha }}
+                      ghcr.io/vtyric/training-desk-${{ matrix.image }}:latest
+                  cache-from: type=gha,scope=${{ matrix.image }}
+                  cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+    deployment-bundle:
+        needs: images
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+            - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+              with:
+                  node-version-file: .nvmrc
+            - name: Package server files without secrets
+              run: node tools/package-deploy.mjs --tag "sha-${GITHUB_SHA}" --prefix ghcr.io/vtyric/training-desk
+            - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+              with:
+                  name: training-desk-deploy-${{ github.sha }}
+                  path: dist/deploy/training-desk-deploy.tar.gz
+                  if-no-files-found: error
+                  retention-days: 30
+
+    deploy:
+        needs: deployment-bundle
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        permissions:
+            contents: read
+            actions: read
+            packages: read
+        env:
+            VPS_HOST: ${{ secrets.VPS_HOST }}
+            VPS_PORT: ${{ secrets.VPS_PORT }}
+            VPS_USER: ${{ secrets.VPS_USER }}
+            VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+            VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+            GHCR_USER: ${{ github.actor }}
+            GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        steps:
+            - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+            - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+              with:
+                  node-version-file: .nvmrc
+            - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+              with:
+                  name: training-desk-deploy-${{ github.sha }}
+                  path: dist/deploy
+            - name: Deploy prebuilt images over SSH
+              run: node tools/deploy-vps.mjs

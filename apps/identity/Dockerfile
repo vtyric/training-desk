@@ -13,7 +13,13 @@ FROM quay.io/keycloak/keycloak:26.7.0@sha256:0f198be292568439d700cdbfb893e69a600
 ENV KC_DB=postgres KC_HEALTH_ENABLED=true
 RUN /opt/keycloak/bin/kc.sh build
 
-FROM quay.io/keycloak/keycloak:26.7.0@sha256:0f198be292568439d700cdbfb893e69a6009bb43a94a06a945b1d3d506c76b13
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS provision
+WORKDIR /app
+COPY tools/configure-identity.mjs tools/configure-access-model.mjs tools/configure-directory-client.mjs tools/configure-support-lead.mjs tools/rename-support-login.mjs tools/rename-support-role.mjs ./tools/
+USER node
+ENTRYPOINT ["node", "tools/configure-identity.mjs"]
+
+FROM quay.io/keycloak/keycloak:26.7.0@sha256:0f198be292568439d700cdbfb893e69a6009bb43a94a06a945b1d3d506c76b13 AS runtime
 COPY --from=keycloak-build /opt/keycloak/ /opt/keycloak/
 COPY --chown=keycloak:keycloak --from=theme /build/dist/apps/identity/theme/artsofte /opt/keycloak/themes/artsofte
 COPY --chown=keycloak:keycloak apps/identity/realm/training-realm.json /opt/keycloak/data/import/training-realm.json

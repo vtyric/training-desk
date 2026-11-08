@@ -20,6 +20,6 @@ description: 'Развивать API, DAL, JWT-доступ, webhook и JSON set
 
 При удалении старого backend-кода проверь package scripts, Nx/Docker entrypoints, тесты и lockfile; правила сохранности state и очистки — в [AGENTS](../../../AGENTS.md).
 
-Swagger REST использует OAuth Code + PKCE через отдельный public client `service-desk-swagger`; вход и RP logout — в браузере документации, не server RP/cookie-сессия. Сохраняй автоматическую подстановку access token и серверную проверку ролей; детали и проверки — [Swagger](../../../docs/swagger.md).
+Swagger REST использует OAuth Code + PKCE через отдельный public client `service-desk-swagger`; вход и RP logout — в браузере документации, не server RP/cookie-сессия. Сохраняй автоматическую подстановку access token и серверную проверку ролей; детали и проверки — [Swagger](../../../docs/identity.md).
 
 Публичный API намеренно минимален: 10 Jira-операций для списка/формы/создания/карточки/комментариев/статусов плюс GET /api/me и GET/PUT/PATCH /api/settings. Не возвращай очереди/JQL/историю/дублирующие issue-карточки без запроса пользователя. Вспомогательные /health и /api/config не показываются в Swagger.

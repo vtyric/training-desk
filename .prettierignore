@@ -8,6 +8,3 @@ docs/vendor
 apps/service-desk/src/dal/migrations/meta
 
 .local
-# Preserve attribution and upstream formatting of CC BY redaktura-skills.
-.agents/skills/redaktura/**
-.agents/skills/ux-copy/**

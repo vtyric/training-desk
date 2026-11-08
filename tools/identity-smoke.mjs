@@ -306,7 +306,7 @@ if (process.argv.includes('--manage-users')) {
                 })
             ).status,
             403,
-            'Agent cannot read global admin settings'
+            'Support cannot read global admin settings'
         );
         const adminRole = await (await management(`/clients/${resource.id}/roles/admin`)).json();
         await management(`/users/${userId}/role-mappings/clients/${resource.id}`, 'POST', [adminRole]);

@@ -1,0 +1,147 @@
+name: training-desk
+x-environment: &environment
+    NODE_ENV: ${DOCKER_NODE_ENV:-development}
+    BASE_URL: ${DOCKER_BASE_URL:-http://localhost:8080}
+    DATABASE_URL: postgres://training:${POSTGRES_PASSWORD:?Generate .env}@postgres:5432/training
+    ADMIN_TOKEN: ${ADMIN_TOKEN:?Generate .env}
+    TEAM_API_TOKEN: ${TEAM_API_TOKEN:?Generate .env}
+    CUSTOMER_API_TOKEN: ${CUSTOMER_API_TOKEN:?Generate .env}
+    OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-http://localhost:8081/realms/training}
+    OIDC_INTERNAL_ISSUER_URL: http://identity:8080/realms/training
+    IDENTITY_DIRECTORY_CLIENT_SECRET: ${IDENTITY_DIRECTORY_CLIENT_SECRET:?Run node tools/setup-env.mjs --extend}
+    IDENTITY_PUBLIC_URL: ${IDENTITY_PUBLIC_URL:-http://localhost:8081}
+    WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:?Generate .env}
+    SETTINGS_FILE: /data/settings/backend.json
+services:
+    postgres:
+        image: ${IMAGE_PREFIX:?Set images.env}-postgres:${IMAGE_TAG:?Set images.env}
+        environment:
+            POSTGRES_DB: training
+            POSTGRES_USER: training
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate .env}
+            IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Generate .env}
+        volumes:
+            - postgres-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U training -d training']
+            interval: 5s
+            timeout: 3s
+            retries: 20
+        restart: unless-stopped
+    ldap:
+        image: ${IMAGE_PREFIX:?Set images.env}-ldap:${IMAGE_TAG:?Set images.env}
+        environment:
+            LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?Generate .env}
+            LDAP_ALICE_PASSWORD: ${LDAP_ALICE_PASSWORD:?Generate .env}
+            LDAP_SUPPORT_PASSWORD: ${LDAP_SUPPORT_PASSWORD:?Run node tools/setup-env.mjs --extend}
+            LDAP_DENIED_PASSWORD: ${LDAP_DENIED_PASSWORD:?Generate .env}
+        volumes:
+            - ldap-data:/var/lib/ldap
+        healthcheck:
+            test: ['CMD-SHELL', 'ldapsearch -x -H ldap://localhost:1389 -b "" -s base supportedLDAPVersion >/dev/null']
+            interval: 5s
+            timeout: 3s
+            retries: 20
+        restart: unless-stopped
+    identity:
+        image: ${IMAGE_PREFIX:?Set images.env}-identity:${IMAGE_TAG:?Set images.env}
+        environment:
+            KC_DB: postgres
+            KC_DB_URL: jdbc:postgresql://postgres:5432/training
+            KC_DB_SCHEMA: identity
+            KC_DB_USERNAME: identity
+            KC_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Generate .env}
+            KC_HOSTNAME: ${IDENTITY_PUBLIC_URL:-http://localhost:8081}
+            KC_HTTP_ENABLED: 'true'
+            KC_PROXY_HEADERS: ${IDENTITY_PROXY_HEADERS:-xforwarded}
+            KC_HEALTH_ENABLED: 'true'
+            KC_BOOTSTRAP_ADMIN_USERNAME: ${IDENTITY_ADMIN_USERNAME:-administrator}
+            KC_BOOTSTRAP_ADMIN_PASSWORD: ${IDENTITY_ADMIN_PASSWORD:?Generate .env}
+            IDENTITY_DIRECTORY_CLIENT_SECRET: ${IDENTITY_DIRECTORY_CLIENT_SECRET:?Run node tools/setup-env.mjs --extend}
+            LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:?Generate .env}
+            SERVICE_DESK_PUBLIC_URL: ${DOCKER_BASE_URL:-http://localhost:8080}
+            SERVICE_DESK_DEV_URL: ${BASE_URL:-http://localhost:4200}
+            API_DOCS_DEV_URL: ${API_DOCS_DEV_URL:-http://localhost:3000}
+            STUDENT_ORIGIN: ${STUDENT_ORIGIN:-http://localhost:4300}
+            STUDENT_REDIRECT_URI: ${STUDENT_REDIRECT_URI:-http://localhost:4300/auth/callback}
+        ports:
+            - '${IDENTITY_BIND_ADDRESS:-127.0.0.1}:${IDENTITY_HTTP_PORT:-8081}:8080'
+        depends_on:
+            postgres:
+                condition: service_healthy
+            ldap:
+                condition: service_healthy
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    "exec 3<>/dev/tcp/127.0.0.1/9000; printf 'GET /health/ready HTTP/1.0\r\n\r\n' >&3; grep -q '200' <&3",
+                ]
+            interval: 5s
+            timeout: 4s
+            start_period: 40s
+            retries: 30
+        mem_limit: 1024m
+        restart: unless-stopped
+    migrate:
+        image: ${IMAGE_PREFIX:?Set images.env}-migrate:${IMAGE_TAG:?Set images.env}
+        environment: *environment
+        depends_on:
+            postgres:
+                condition: service_healthy
+        restart: 'no'
+        init: true
+    service-desk:
+        image: ${IMAGE_PREFIX:?Set images.env}-service-desk:${IMAGE_TAG:?Set images.env}
+        environment: *environment
+        ports:
+            - '${DOCKER_BIND_ADDRESS:-127.0.0.1}:${DOCKER_HTTP_PORT:-8080}:3000'
+        volumes:
+            - service-desk-settings:/data/settings
+        extra_hosts:
+            - host.docker.internal:host-gateway
+        depends_on:
+            migrate:
+                condition: service_completed_successfully
+            identity:
+                condition: service_healthy
+            postgres:
+                condition: service_healthy
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'node',
+                    '-e',
+                    'fetch("http://127.0.0.1:3000/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))',
+                ]
+            interval: 5s
+            timeout: 3s
+            start_period: 15s
+            retries: 12
+        init: true
+        read_only: true
+        tmpfs:
+            - /tmp:size=16m,mode=1777
+        restart: unless-stopped
+        stop_grace_period: 30s
+    provision:
+        image: ${IMAGE_PREFIX:?Set images.env}-provision:${IMAGE_TAG:?Set images.env}
+        profiles: [ops]
+        environment:
+            IDENTITY_PUBLIC_URL: http://identity:8080
+            IDENTITY_ADMIN_USERNAME: ${IDENTITY_ADMIN_USERNAME:-administrator}
+            IDENTITY_ADMIN_PASSWORD: ${IDENTITY_ADMIN_PASSWORD:?Set .env}
+            IDENTITY_DIRECTORY_CLIENT_SECRET: ${IDENTITY_DIRECTORY_CLIENT_SECRET:?Set .env}
+            DESK_ADMIN_PASSWORD: ${DESK_ADMIN_PASSWORD:?Set .env}
+            SUPPORT_LEAD_PASSWORD: ${SUPPORT_LEAD_PASSWORD:?Set .env}
+            DOCKER_BASE_URL: ${DOCKER_BASE_URL:-http://localhost:8080}
+            API_DOCS_DEV_URL: ${API_DOCS_DEV_URL:-http://localhost:3000}
+        depends_on:
+            identity:
+                condition: service_healthy
+        restart: 'no'
+volumes:
+    postgres-data:
+    ldap-data:
+    service-desk-settings:

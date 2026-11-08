@@ -13,7 +13,7 @@ Identity — отдельный Nx-проект `apps/identity`, схема `ide
 
 `student-service` — внешний public client; `service-desk-test` — public client встроенного тестового UI. Оба Authorization Code + PKCE S256. `service-desk` — ресурс/audience, не confidential RP. Не включай password/direct grants, implicit flow, server app cookie/RP или client secret в UI.
 
-Swagger — отдельный public client `service-desk-swagger`, Code + PKCE, точные `/docs/static/oauth2-redirect.html` и `/docs/` post-logout URLs; [параметры](../../../docs/swagger.md). Его конфигурация согласуется при каждом запуске configure-identity отдельно от пользователей/ролей.
+Swagger — отдельный public client `service-desk-swagger`, Code + PKCE, точные `/docs/static/oauth2-redirect.html` и `/docs/` post-logout URLs; [параметры](../../../docs/identity.md). Его конфигурация согласуется при каждом запуске configure-identity отдельно от пользователей/ролей.
 
 Первичный `tools/configure-identity.mjs` задаёт managed profile/LDAP sync/demo roles; marker предотвращает повторную замену назначений. Это operator bootstrap, не password flow студентов.
 
