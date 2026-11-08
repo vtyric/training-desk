@@ -37,7 +37,7 @@ Inter/system-ui, поля 16 px, белая форма и синий геоме�
 
 ## Сборка темы
 
-`node tools/build-identity-theme.mjs` создаёт `dist/apps/identity/theme/artsofte/login`. Сборщик копирует FTL/JS, компилирует SCSS, переносит шрифты и лицензию в `resources/fonts`, заменяет пути Montserrat на относительные. `stylesVersion` включает хеш CSS и скрипта продолжения, чтобы обновлять кеш ресурсов.
+`node tools/build-identity-theme.mjs` создаёт `dist/apps/identity/theme/artsofte/login`. Сборщик копирует FTL/JS, компилирует SCSS, переносит шрифты и лицензию в `resources/fonts`, общий favicon с буквой A — в `resources/images`, заменяет пути Montserrat на относительные. `stylesVersion` включает хеш CSS, скрипта продолжения и favicon, чтобы обновлять кеш ресурсов.
 
 Dockerfile принадлежит `apps/identity`; Nx-зависимости Identity включают `theme` и `ui`. Sass build подтверждает импорты, но не рендер FreeMarker и не внешний вид в браузере. Эти проверки учитываются отдельно; управление браузером требует согласования.
 

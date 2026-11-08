@@ -14,6 +14,9 @@ await mkdir(target, { recursive: true });
 await cp(resolve(source, 'artsofte'), resolve(target, 'artsofte'), { recursive: true });
 await mkdir(resolve(loginResources, 'css'), { recursive: true });
 await mkdir(resolve(loginResources, 'fonts'), { recursive: true });
+await mkdir(resolve(loginResources, 'images'), { recursive: true });
+const favicon = await readFile(resolve(root, 'libs/theme/assets/brand/favicon.svg'));
+await writeFile(resolve(loginResources, 'images/favicon.svg'), favicon);
 const css = compile(resolve(source, 'styles.scss'), {
     loadPaths: [resolve(root, 'libs/theme/src')],
     style: 'compressed',
@@ -24,7 +27,7 @@ const properties = await readFile(propertiesPath, 'utf8');
 const continueScript = await readFile(resolve(source, 'artsofte/login/resources/js/continue-session.js'), 'utf8');
 await writeFile(
     propertiesPath,
-    `${properties.trimEnd()}\nstylesVersion=${createHash('sha256').update(css).update(continueScript).digest('hex').slice(0, 12)}\n`
+    `${properties.trimEnd()}\nstylesVersion=${createHash('sha256').update(css).update(continueScript).update(favicon).digest('hex').slice(0, 12)}\n`
 );
 for (const filename of ['montserrat-cyrillic.woff2', 'montserrat-latin.woff2', 'OFL.txt']) {
     await cp(resolve(root, 'libs/theme/assets/brand', filename), resolve(loginResources, 'fonts', filename));

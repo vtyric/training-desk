@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
     <title>${properties.federationTitle!'Artsofte Federation'}</title>
+    <link rel="icon" type="image/svg+xml" href="${url.resourcesPath}/images/favicon.svg?v=${properties.stylesVersion!'dev'}" sizes="any" />
     <link rel="stylesheet" href="${url.resourcesPath}/css/theme.css?v=${properties.stylesVersion!'dev'}" />
     <#if url.ssoLoginInOtherTabsUrl??>
         <script type="module">
